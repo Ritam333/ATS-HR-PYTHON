@@ -1,4 +1,6 @@
 import streamlit as st
+st.set_page_config(page_title="HR Dashboard")
+
 import pandas as pd
 
 st.title("👔 HR Dashboard")
