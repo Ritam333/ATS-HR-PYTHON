@@ -25,22 +25,3 @@ if submit_job:
 # Section 2: Resume Analysis Result
 st.header("📊 Resume Analysis")
 
-# Simulated example data (replace with actual model or backend logic)
-sample_data = {
-    "Candidate Name": ["Ravi Kumar", "Ayesha Sharma", "Ritu Das"],
-    "Match %": [87, 45, 72],
-    "Status": ["Shortlisted", "Rejected", "Shortlisted"],
-    "Rejection Reason": ["", "Low skill match", ""]
-}
-
-df = pd.DataFrame(sample_data)
-
-if "job_description" in st.session_state:
-    st.subheader(f"Analysis for: {st.session_state['job_title']}")
-    st.dataframe(df)
-
-    # Optional: Download results
-    csv = df.to_csv(index=False).encode("utf-8")
-    st.download_button("📥 Download Result CSV", csv, "ats_results.csv", "text/csv")
-else:
-    st.info("ℹ️ Upload a job description to see analysis results.")
