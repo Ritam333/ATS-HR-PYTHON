@@ -12,7 +12,7 @@ with st.form("job_posting_form"):
     position_level = st.selectbox("🧑‍💼 Required Position", ["-- Select --", "Intern", "Junior", "Mid-Level", "Senior", "Lead"])
     location = st.text_input("📍 Onsite Location", placeholder="e.g., Bangalore, India")
     experience = st.slider("📆 Years of Experience Required", min_value=0, max_value=15, value=2)
-    qualification = st.selectbox("🎓 Minimum Qualification", ["-- Select --", "Diploma", "B.Sc", "B.Tech/B.E", "M.Sc", "MCA", "MBA", "Other"])
+    qualification = st.multiselect("🎓 Minimum Qualification", ["-- Select --", "Diploma", "B.Sc", "B.Tech/B.E", "M.Sc", "MCA", "MBA", "Other"])
     skills = st.multiselect("🛠️ Required Skills", ["Python", "SQL", "Excel", "Communication", "Machine Learning", "JavaScript", "Power BI", "Django", "HTML/CSS", "React", "Git"])
     job_description = st.text_area("📝 General Job Description", placeholder="e.g., Responsibilities, skills required, etc.")
     
