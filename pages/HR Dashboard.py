@@ -4,8 +4,8 @@ import requests
 import json
 
 # --- Supabase Configuration ---
-SUPABASE_URL = "https://yourproject.supabase.co"
-SUPABASE_API_KEY = "your-anon-key"
+SUPABASE_URL = "https://dkziaqgekmdfrdtujfqf.supabase.co"
+SUPABASE_API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRremlhcWdla21kZnJkdHVqZnFmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUzNDI3MTgsImV4cCI6MjA2MDkxODcxOH0.9GNoEzHngK0Uz9VVKoD5im5WLy-pmfc2Xbb2uom4OBU"
 TABLE_NAME = "job_posts"
 
 def insert_into_supabase(data):
