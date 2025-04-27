@@ -1,3 +1,7 @@
 streamlit
-supabase-py
 pandas
+supabase-py
+gotrue
+postgrest
+realtime
+storage3
