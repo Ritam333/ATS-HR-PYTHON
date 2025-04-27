@@ -1,13 +1,23 @@
 import streamlit as st
 import pandas as pd
-from supabase.client import create_client, Client
-
+import requests
+import json
 
 # --- Supabase Configuration ---
-url = "https://dkziaqgekmdfrdtujfqf.supabase.co"   # your Project URL
-key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRremlhcWdla21kZnJkdHVqZnFmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUzNDI3MTgsImV4cCI6MjA2MDkxODcxOH0.9GNoEzHngK0Uz9VVKoD5im5WLy-pmfc2Xbb2uom4OBU"
+SUPABASE_URL = "https://yourproject.supabase.co"
+SUPABASE_API_KEY = "your-anon-key"
+TABLE_NAME = "job_posts"
 
-supabase: Client = create_client(url, key)
+def insert_into_supabase(data):
+    url = f"{SUPABASE_URL}/rest/v1/{TABLE_NAME}"
+    headers = {
+        "apikey": SUPABASE_API_KEY,
+        "Authorization": f"Bearer {SUPABASE_API_KEY}",
+        "Content-Type": "application/json",
+        "Prefer": "return=representation"
+    }
+    response = requests.post(url, headers=headers, data=json.dumps(data))
+    return response
 
 # --- Streamlit App ---
 st.set_page_config(page_title="HR Dashboard")
@@ -30,7 +40,7 @@ with st.form("job_posting_form"):
 if submit_job:
     if (job_title and position_level != "-- Select --" and location and job_description and qualification and skills):
         
-        # Insert into Supabase
+        # Insert into Supabase via API
         data = {
             "job_title": job_title,
             "position_level": position_level,
@@ -41,12 +51,12 @@ if submit_job:
             "job_description": job_description
         }
         
-        response = supabase.table("job_posts").insert(data).execute()
+        response = insert_into_supabase(data)
 
         if response.status_code == 201:
             st.success(f"✅ Job for '{position_level} {job_title}' at '{location}' uploaded successfully to Supabase!")
         else:
-            st.error(f"❌ Failed to upload job info! Error: {response.data}")
+            st.error(f"❌ Failed to upload job info! Error: {response.text}")
     else:
         st.warning("⚠️ Please fill in all fields before submitting.")
 

@@ -1,7 +1,3 @@
 streamlit
 pandas
-supabase-py
-gotrue
-postgrest
-realtime
-storage3
+requests
