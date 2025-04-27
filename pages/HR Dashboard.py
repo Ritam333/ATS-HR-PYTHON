@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
-from supabase import create_client, Client
+from supabase.client import create_client, Client
+
 
 # --- Supabase Configuration ---
 url = "https://dkziaqgekmdfrdtujfqf.supabase.co"   # your Project URL
