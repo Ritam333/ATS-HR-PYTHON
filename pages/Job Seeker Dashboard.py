@@ -30,13 +30,18 @@ jobs_data = fetch_jobs()
 
 if jobs_data:
     df = pd.DataFrame(jobs_data)
-    
-    # Optional: Show only selected columns
-    columns_to_show = ['job_id', 'job_title', 'position_level', 'location', 'experience_required', 'skills_required']
-    df_display = df[columns_to_show]
 
-    st.subheader("📄 Available Job Openings")
-    st.dataframe(df_display)
+    # Optional: Only show available columns
+    columns_we_want = ['job_id', 'job_title', 'position_level', 'location', 'experience_required', 'skills_required']
+
+    # Filter columns that actually exist
+    available_columns = [col for col in columns_we_want if col in df.columns]
+
+    if available_columns:
+        st.subheader("📄 Available Job Openings")
+        st.dataframe(df[available_columns])
+    else:
+        st.info("No matching columns found in the fetched data.")
 
 else:
     st.info("No job postings available right now. Please check back later!")
