@@ -52,11 +52,17 @@ if jobs_data:
             job_description = job.get('job_description', 'No description provided.')
             st.markdown(f"**📝 Job Description:** {job_description}")
 
-            # Apply Button
-            if st.button(f"Apply for {job.get('job_title', 'this role')}", key=job.get('job_id', job.get('id'))):
-                st.success(f"You have applied for {job.get('job_title', 'this role')}! 🎯")
+            apply_clicked = st.button(f"Apply for {job.get('job_title', 'this role')}", key=f"apply_{job.get('job_id', job.get('id'))}")
+
+            if apply_clicked:
+                with st.expander("📄 Upload Your Resume (CV) Here"):
+                    st.write(f"Applying for **{job.get('job_title', 'this role')}**")
+                    uploaded_cv = st.file_uploader("Upload your Resume (PDF or DOCX)", type=['pdf', 'docx'], key=f"cv_{job.get('job_id', job.get('id'))}")
+
+                    if uploaded_cv is not None:
+                        st.success(f"✅ Resume uploaded successfully for {job.get('job_title', 'this role')}!")
+                        # Optionally: Save uploaded_cv to Supabase Storage (if needed)
             
             st.markdown("---")  # Separator between job posts
-
 else:
     st.info("No job postings available right now. Please check back later!")
