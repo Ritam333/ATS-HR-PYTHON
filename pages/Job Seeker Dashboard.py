@@ -53,11 +53,6 @@ if jobs_data:
             st.markdown(f"**📝 Job Description:** {job_description}")
 
            # Apply Button
-apply_clicked = st.button(f"Apply for {job.get('job_title', 'this role')}", key=f"apply_{job.get('job_id', job.get('id'))}")
-
-if apply_clicked:
-    st.write(f"Apply for **{job.get('job_title', 'this role')}**")
-
     uploaded_cv = st.file_uploader("📄 Upload your Resume (PDF or DOCX)", type=['pdf', 'docx'], key=f"cv_{job.get('job_id', job.get('id'))}")
 
     if uploaded_cv is not None:
