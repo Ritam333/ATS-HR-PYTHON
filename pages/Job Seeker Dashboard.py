@@ -32,19 +32,26 @@ if jobs_data:
     st.subheader("📄 Available Job Openings")
 
     for job in jobs_data:
-        with st.container():
-            st.markdown(f"### {job.get('job_title', 'N/A')}")
-            st.write(f"**Position Level:** {job.get('position_level', 'N/A')}")
-            st.write(f"**Location:** {job.get('location', 'N/A')}")
-            st.write(f"**Experience Required:** {job.get('experience_required', 'N/A')} years")
-            skills = ", ".join(job.get('skills_required', [])) if isinstance(job.get('skills_required', list)) else job.get('skills_required', 'N/A')
-            st.write(f"**Skills Required:** {skills}")
+      with st.container():
+        st.markdown(f"### {job.get('job_title', 'N/A')}")
+        st.write(f"**Position Level:** {job.get('position_level', 'N/A')}")
+        st.write(f"**Location:** {job.get('location', 'N/A')}")
+        st.write(f"**Experience Required:** {job.get('experience_required', 'N/A')} years")
 
-            # Apply Button
-            if st.button(f"Apply for {job.get('job_title', 'this role')}", key=job.get('job_id', job.get('id'))):
-                st.success(f"You have applied for {job.get('job_title', 'this role')}! 🎯")
-                
-            st.markdown("---")  # Separator between jobs
+        skills_value = job.get('skills_required', [])
+        if isinstance(skills_value, list):
+            skills = ", ".join(skills_value)
+        elif isinstance(skills_value, str):
+            skills = skills_value
+        else:
+            skills = "N/A"
+        st.write(f"**Skills Required:** {skills}")
+
+        if st.button(f"Apply for {job.get('job_title', 'this role')}", key=job.get('job_id', job.get('id'))):
+            st.success(f"You have applied for {job.get('job_title', 'this role')}! 🎯")
+            
+        st.markdown("---")
+
 
 else:
     st.info("No job postings available right now. Please check back later!")
