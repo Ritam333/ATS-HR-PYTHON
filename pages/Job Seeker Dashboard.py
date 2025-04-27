@@ -29,19 +29,22 @@ st.title("🔎 Job Seeker Dashboard")
 jobs_data = fetch_jobs()
 
 if jobs_data:
-    df = pd.DataFrame(jobs_data)
+    st.subheader("📄 Available Job Openings")
 
-    # Optional: Only show available columns
-    columns_we_want = ['job_id', 'job_title', 'position_level', 'location', 'experience_required', 'skills_required']
+    for job in jobs_data:
+        with st.container():
+            st.markdown(f"### {job.get('job_title', 'N/A')}")
+            st.write(f"**Position Level:** {job.get('position_level', 'N/A')}")
+            st.write(f"**Location:** {job.get('location', 'N/A')}")
+            st.write(f"**Experience Required:** {job.get('experience_required', 'N/A')} years")
+            skills = ", ".join(job.get('skills_required', [])) if isinstance(job.get('skills_required', list)) else job.get('skills_required', 'N/A')
+            st.write(f"**Skills Required:** {skills}")
 
-    # Filter columns that actually exist
-    available_columns = [col for col in columns_we_want if col in df.columns]
-
-    if available_columns:
-        st.subheader("📄 Available Job Openings")
-        st.dataframe(df[available_columns])
-    else:
-        st.info("No matching columns found in the fetched data.")
+            # Apply Button
+            if st.button(f"Apply for {job.get('job_title', 'this role')}", key=job.get('job_id', job.get('id'))):
+                st.success(f"You have applied for {job.get('job_title', 'this role')}! 🎯")
+                
+            st.markdown("---")  # Separator between jobs
 
 else:
     st.info("No job postings available right now. Please check back later!")
