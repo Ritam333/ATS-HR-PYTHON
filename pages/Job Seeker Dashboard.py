@@ -34,14 +34,15 @@ def upload_to_storage(file, filename):
         "Authorization": f"Bearer {SUPABASE_API_KEY}",
         "Content-Type": "application/octet-stream"
     }
-    response = requests.post(url, headers=headers, data=file)
+    response = requests.put(url, headers=headers, data=file)   # <-- notice PUT not POST
     
     if response.status_code in (200, 201):
         public_url = f"{SUPABASE_URL}/storage/v1/object/public/{STORAGE_BUCKET}/{filename}"
         return public_url
     else:
-        st.error("Failed to upload resume to storage!")
+        st.error(f"Failed to upload resume to storage! Error: {response.text}")
         return None
+
 
 def save_application(job_id, job_title, resume_url):
     """Saves the application info to Supabase."""
