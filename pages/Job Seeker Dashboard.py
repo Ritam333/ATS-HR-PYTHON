@@ -1,14 +1,19 @@
 import streamlit as st
 import pandas as pd
 import requests
+import base64
 
 # --- Supabase Configuration ---
-SUPABASE_URL = "https://dkziaqgekmdfrdtujfqf.supabase.co"    # Replace with your URL
-SUPABASE_API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRremlhcWdla21kZnJkdHVqZnFmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUzNDI3MTgsImV4cCI6MjA2MDkxODcxOH0.9GNoEzHngK0Uz9VVKoD5im5WLy-pmfc2Xbb2uom4OBU"                  # Replace with your key
-TABLE_NAME = "job_posts"
+SUPABASE_URL = "https://dkziaqgekmdfrdtujfqf.supabase.co"
+SUPABASE_API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRremlhcWdla21kZnJkdHVqZnFmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDUzNDI3MTgsImV4cCI6MjA2MDkxODcxOH0.9GNoEzHngK0Uz9VVKoD5im5WLy-pmfc2Xbb2uom4OBU"
+
+# Table names
+JOB_TABLE = "job_posts"
+APPLICATION_TABLE = "applications"    # <-- Your new table to store applications
+STORAGE_BUCKET = "resumes"             # <-- Your storage bucket for uploaded files
 
 def fetch_jobs():
-    url = f"{SUPABASE_URL}/rest/v1/{TABLE_NAME}?select=*"
+    url = f"{SUPABASE_URL}/rest/v1/{JOB_TABLE}?select=*"
     headers = {
         "apikey": SUPABASE_API_KEY,
         "Authorization": f"Bearer {SUPABASE_API_KEY}"
@@ -21,11 +26,43 @@ def fetch_jobs():
         st.error("Failed to fetch jobs!")
         return []
 
+def upload_to_storage(file, filename):
+    """Uploads file to Supabase Storage and returns the public URL."""
+    url = f"{SUPABASE_URL}/storage/v1/object/{STORAGE_BUCKET}/{filename}"
+    headers = {
+        "apikey": SUPABASE_API_KEY,
+        "Authorization": f"Bearer {SUPABASE_API_KEY}",
+        "Content-Type": "application/octet-stream"
+    }
+    response = requests.post(url, headers=headers, data=file)
+    
+    if response.status_code in (200, 201):
+        public_url = f"{SUPABASE_URL}/storage/v1/object/public/{STORAGE_BUCKET}/{filename}"
+        return public_url
+    else:
+        st.error("Failed to upload resume to storage!")
+        return None
+
+def save_application(job_id, job_title, resume_url):
+    """Saves the application info to Supabase."""
+    url = f"{SUPABASE_URL}/rest/v1/{APPLICATION_TABLE}"
+    headers = {
+        "apikey": SUPABASE_API_KEY,
+        "Authorization": f"Bearer {SUPABASE_API_KEY}",
+        "Content-Type": "application/json"
+    }
+    data = {
+        "job_uid": job_id,
+        "job_title": job_title,
+        "resume_url": resume_url
+    }
+    response = requests.post(url, headers=headers, json=data)
+    return response.status_code in (200, 201)
+
 # --- Streamlit App ---
 st.set_page_config(page_title="Job Seeker Dashboard")
 st.title("🔎 Job Seeker Dashboard")
 
-# Fetch and show jobs
 jobs_data = fetch_jobs()
 
 if jobs_data:
@@ -52,14 +89,32 @@ if jobs_data:
             job_description = job.get('job_description', 'No description provided.')
             st.markdown(f"**📝 Job Description:** {job_description}")
 
-           # Apply Button
-    uploaded_cv = st.file_uploader("📄 Upload your Resume (PDF or DOCX)", type=['pdf', 'docx'], key=f"cv_{job.get('job_id', job.get('id'))}")
+            # Upload CV
+            uploaded_cv = st.file_uploader(
+                "📄 Upload your Resume (PDF or DOCX)",
+                type=['pdf', 'docx'],
+                key=f"cv_{job.get('job_id', job.get('id'))}"
+            )
 
-    if uploaded_cv is not None:
-        if st.button("📤 Submit Resume", key=f"submit_{job.get('job_id', job.get('id'))}"):
-            st.success(f"✅ Resume submitted successfully for {job.get('job_title', 'this role')}!")
+            if uploaded_cv is not None:
+                if st.button("📤 Submit Resume", key=f"submit_{job.get('job_id', job.get('id'))}"):
+                    # Upload the file to Supabase Storage
+                    file_bytes = uploaded_cv.read()
+                    filename = f"{job.get('job_id', job.get('id'))}_{uploaded_cv.name}"
+                    resume_url = upload_to_storage(file_bytes, filename)
 
-            
+                    if resume_url:
+                        success = save_application(
+                            job_id=job.get('job_id', job.get('id')),
+                            job_title=job.get('job_title', 'N/A'),
+                            resume_url=resume_url
+                        )
+                        if success:
+                            st.success(f"✅ Resume submitted successfully for {job.get('job_title', 'this role')}!")
+                        else:
+                            st.error("❌ Failed to save application!")
+
             st.markdown("---")  # Separator between job posts
+
 else:
     st.info("No job postings available right now. Please check back later!")
