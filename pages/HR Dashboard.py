@@ -36,7 +36,7 @@ def fetch_table_data(table):
 
 # --- Streamlit App ---
 st.set_page_config(page_title="HR Dashboard")
-st.title("👔 HR Dashboard")
+st.title("💼 HR Dashboard")
 
 # Section 1: Upload Job Details
 st.header("📄 Upload Job Requirement")
@@ -48,9 +48,9 @@ with st.form("job_posting_form"):
     experience = st.slider("📆 Years of Experience Required", min_value=0, max_value=15, value=2)
     qualification = st.multiselect("🎓 Minimum Qualification", ["Diploma", "B.Sc", "B.Tech/B.E", "M.Sc", "MCA", "MBA", "Other"])
     skills = st.multiselect("🛠️ Required Skills", ["Python", "SQL", "Excel", "Communication", "Machine Learning", "JavaScript", "Power BI", "Django", "HTML/CSS", "React", "Git"])
-    job_description = st.text_area("📝 General Job Description", placeholder="e.g., Responsibilities, skills required, etc.")
-    
-    submit_job = st.form_submit_button("📤 Upload Job Info")
+    job_description = st.text_area("🖍️ General Job Description", placeholder="e.g., Responsibilities, skills required, etc.")
+
+    submit_job = st.form_submit_button("📄 Upload Job Info")
 
 if submit_job:
     if (job_title and position_level != "-- Select --" and location and job_description and qualification and skills):
@@ -77,22 +77,41 @@ st.header("📊 Resume Analysis")
 jobs = fetch_table_data(JOB_TABLE)
 applications = fetch_table_data(APPLICATION_TABLE)
 
+st.write("✅ Total Jobs Fetched:", len(jobs))
+st.write("✅ Total Applications Fetched:", len(applications))
+
 if jobs and applications:
     for job in jobs:
-        st.subheader(f"{job['job_title']} ({job['location']})")
-        related_apps = [a for a in applications if a.get("job_uid") == job.get("id")]
+        job_id = job.get('id') or job.get('job_id')
+        st.subheader(f"📝 {job['job_title']} ({job['location']})")
+        st.write(f"🔍 Job ID: {job_id}")
+
+        related_apps = [a for a in applications if a.get("job_uid") == job_id]
+        st.write(f"📅 Applications Found: {len(related_apps)}")
 
         if not related_apps:
             st.info("No applications received yet.")
             continue
 
         for app in related_apps:
-            resume_url = app.get("resume_url")
+            resume_url = app.get("resume_url", "")
+            st.write(f"🔗 Resume URL: {resume_url}")
+            st.write(f"🔗 job_uid: {app.get('job_uid')}")
+
             if not resume_url:
-                st.warning("No resume URL found.")
+                st.warning("❌ No resume URL found.")
                 continue
 
-            resume_raw = extract_text_from_pdf_url(resume_url)
+            try:
+                resume_raw = extract_text_from_pdf_url(resume_url)
+            except Exception as e:
+                st.error(f"❌ Failed to extract resume: {e}")
+                continue
+
+            if not resume_raw.strip():
+                st.warning("⚠️ Resume text is empty. Possibly unreadable or not a PDF.")
+                continue
+
             resume_clean = clean_text(resume_raw)
             jd_clean = clean_text(job.get('job_description', ''))
 
@@ -111,6 +130,5 @@ if jobs and applications:
                 st.write("🔹 Experience (Years):", details["experience_years"])
                 st.write("🔹 Education Match:", "✅ Yes" if details["education_matched"] else "❌ No")
                 st.write("🔹 Location Match:", "✅ Yes" if details["location_matched"] else "❌ No")
-
 else:
     st.warning("No job or application data found.")
