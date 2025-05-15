@@ -119,3 +119,4 @@ if jobs_data:
 
 else:
     st.info("No job postings available right now. Please check back later!")
+
