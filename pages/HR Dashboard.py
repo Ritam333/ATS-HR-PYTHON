@@ -62,3 +62,18 @@ if submit_job:
 
 # Section 2: Resume Analysis Result
 st.header("📊 Resume Analysis")
+from ats_model import (
+    clean_text, extract_text_from_pdf_url, calculate_ats_score
+)
+resume_raw = extract_text_from_pdf_url(app['resume_url'])
+resume_clean = clean_text(resume_raw)
+jd_clean = clean_text(job['job_description'])
+
+score, details = calculate_ats_score(
+    resume_clean,
+    jd_clean,
+    job.get('skills_required', []),
+    job.get('experience_required', 0),
+    job.get('qualification', []),
+    [job.get('location', '')]
+)
