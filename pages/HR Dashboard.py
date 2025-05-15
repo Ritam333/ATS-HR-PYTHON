@@ -80,13 +80,17 @@ applications = fetch_table_data(APPLICATION_TABLE)
 st.write("✅ Total Jobs Fetched:", len(jobs))
 st.write("✅ Total Applications Fetched:", len(applications))
 
+st.write("🔍 Application job_uids:")
+for app in applications:
+    st.write(f"job_uid = {app.get('job_uid')}, resume = {app.get('resume_url')}")
+
 if jobs and applications:
     for job in jobs:
         job_id = job.get('id') or job.get('job_id')
         st.subheader(f"📝 {job['job_title']} ({job['location']})")
         st.write(f"🔍 Job ID: {job_id}")
 
-        related_apps = [a for a in applications if a.get("job_uid") == job_id]
+        related_apps = [a for a in applications if str(a.get("job_uid")) == str(job_id)]
         st.write(f"📅 Applications Found: {len(related_apps)}")
 
         if not related_apps:
