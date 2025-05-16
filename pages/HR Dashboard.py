@@ -79,8 +79,8 @@ jobs = fetch_table_data(JOB_TABLE)
 applications = fetch_table_data(APPLICATION_TABLE)
 
 if jobs and applications:
-    st.write("✅ Total Jobs Fetched:", len(jobs))
-    st.write("✅ Total Applications Fetched:", len(applications))
+    # st.write("✅ Total Jobs Fetched:", len(jobs))
+    # st.write("✅ Total Applications Fetched:", len(applications))
     
     for job in jobs:
         job_id = job.get('id') or job.get('job_id')
