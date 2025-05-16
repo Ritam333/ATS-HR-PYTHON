@@ -74,10 +74,15 @@ if submit_job:
 # Section 2: Resume Analysis
 # Section 2: Resume Analysis
 # Section 2: Resume Analysis
+# Section 2: Resume Analysis
 st.header("📊 Resume Analysis")
 
 jobs = fetch_table_data(JOB_TABLE)
 applications = fetch_table_data(APPLICATION_TABLE)
+
+def safe_join(base, path):
+    # Joins base and path safely, removing double slashes
+    return f"{base.rstrip('/')}/{path.lstrip('/')}"
 
 if jobs and applications:
     for job in jobs:
@@ -87,21 +92,27 @@ if jobs and applications:
         
         related_apps = [a for a in applications if str(a.get("job_uid")) == str(job_id)]
         
-        # Collect only successfully processed resumes
         successful_apps = []
         processed_details = []  # store tuples (app, file_name, score, details, resume_url)
         for app in related_apps:
             resume_url = app.get("resume_url", "")
             file_name = resume_url.split('/')[-1] if resume_url else "Unknown"
+
+            # -- URL Construction & Cleaning --
+            if not resume_url.startswith("http"):
+                resume_url = safe_join(
+                    f"{SUPABASE_URL}/storage/v1/object/public/resumes",
+                    resume_url
+                )
+            while '//' in resume_url.replace('https://', ''):
+                resume_url = resume_url.replace('//', '/')
+                resume_url = resume_url.replace('https:/', 'https://')
+
             try:
                 resume_raw = extract_text_from_pdf_url(resume_url)
             except Exception as e:
-                # Optional: show error if you want
-                # st.error(f"❌ Failed to extract resume: {e}")
                 continue
             if not resume_raw.strip():
-                # Optional: show warning if you want
-                # st.warning("⚠️ Resume text is empty. Possibly unreadable or not a PDF.")
                 continue
             resume_clean = clean_text(resume_raw)
             jd_clean = clean_text(job.get('job_description', ''))
