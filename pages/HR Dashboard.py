@@ -72,24 +72,21 @@ if submit_job:
         st.warning("⚠️ Please fill in all fields before submitting.")
 
 # Section 2: Resume Analysis
+# Section 2: Resume Analysis
 st.header("📊 Resume Analysis")
 
 jobs = fetch_table_data(JOB_TABLE)
 applications = fetch_table_data(APPLICATION_TABLE)
 
-st.write("✅ Total Jobs Fetched:", len(jobs))
-st.write("✅ Total Applications Fetched:", len(applications))
-
-st.write("🔍 Application job_uids:")
-for app in applications:
-    st.write(f"job_uid = {app.get('job_uid')}, resume = {app.get('resume_url')}")
-
 if jobs and applications:
+    st.write("✅ Total Jobs Fetched:", len(jobs))
+    st.write("✅ Total Applications Fetched:", len(applications))
+    
     for job in jobs:
         job_id = job.get('id') or job.get('job_id')
         st.subheader(f"📝 {job['job_title']} ({job['location']})")
         st.write(f"🔍 Job ID: {job_id}")
-
+        
         related_apps = [a for a in applications if str(a.get("job_uid")) == str(job_id)]
         st.write(f"📅 Applications Found: {len(related_apps)}")
 
@@ -99,13 +96,9 @@ if jobs and applications:
 
         for app in related_apps:
             resume_url = app.get("resume_url", "")
-            st.write(f"🔗 Resume URL: {resume_url}")
-            st.write(f"🔗 job_uid: {app.get('job_uid')}")
+            file_name = resume_url.split('/')[-1] if resume_url else "Unknown"
 
-            if not resume_url:
-                st.warning("❌ No resume URL found.")
-                continue
-
+            # Extract resume text
             try:
                 resume_raw = extract_text_from_pdf_url(resume_url)
             except Exception as e:
@@ -128,11 +121,18 @@ if jobs and applications:
                 [job.get('location', '')]
             )
 
-            with st.expander(f"📄 Resume: {resume_url.split('/')[-1]} | ATS Score: {score}%"):
-                st.write("🔹 Cosine Similarity:", details["cosine_similarity"])
-                st.write("🔹 Skills Matched:", ", ".join(details["skills_matched"]))
-                st.write("🔹 Experience (Years):", details["experience_years"])
-                st.write("🔹 Education Match:", "✅ Yes" if details["education_matched"] else "❌ No")
-                st.write("🔹 Location Match:", "✅ Yes" if details["location_matched"] else "❌ No")
+            # ==== FINAL OUTPUT SECTION ====
+            st.markdown(f"""
+🔗 job_uid: {app.get('job_uid')}
+
+[📄 **Resume: {file_name}**]({resume_url}) | **ATS Score:** {score:.2f}%
+
+- 🔹 Cosine Similarity: `{details["cosine_similarity"]}`
+- 🔹 Skills Matched: `{", ".join(details["skills_matched"]) if details["skills_matched"] else "None"}`
+- 🔹 Experience (Years): `{details["experience_years"]}`
+- 🔹 Education Match: {"✅ Yes" if details["education_matched"] else "❌ No"}
+- 🔹 Location Match: {"✅ Yes" if details["location_matched"] else "❌ No"}
+---
+""")
 else:
     st.warning("No job or application data found.")
