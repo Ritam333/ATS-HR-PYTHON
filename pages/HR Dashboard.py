@@ -73,45 +73,38 @@ if submit_job:
 
 # Section 2: Resume Analysis
 # Section 2: Resume Analysis
+# Section 2: Resume Analysis
 st.header("📊 Resume Analysis")
 
 jobs = fetch_table_data(JOB_TABLE)
 applications = fetch_table_data(APPLICATION_TABLE)
 
 if jobs and applications:
-    # st.write("✅ Total Jobs Fetched:", len(jobs))
-    # st.write("✅ Total Applications Fetched:", len(applications))
-    
     for job in jobs:
         job_id = job.get('id') or job.get('job_id')
         st.subheader(f"📝 {job['job_title']} ({job['location']})")
         st.write(f"🔍 Job ID: {job_id}")
         
         related_apps = [a for a in applications if str(a.get("job_uid")) == str(job_id)]
-        st.write(f"📅 Applications Found: {len(related_apps)}")
-
-        if not related_apps:
-            st.info("No applications received yet.")
-            continue
-
+        
+        # Collect only successfully processed resumes
+        successful_apps = []
+        processed_details = []  # store tuples (app, file_name, score, details, resume_url)
         for app in related_apps:
             resume_url = app.get("resume_url", "")
             file_name = resume_url.split('/')[-1] if resume_url else "Unknown"
-
-            # Extract resume text
             try:
                 resume_raw = extract_text_from_pdf_url(resume_url)
             except Exception as e:
-                st.error(f"❌ Failed to extract resume: {e}")
+                # Optional: show error if you want
+                # st.error(f"❌ Failed to extract resume: {e}")
                 continue
-
             if not resume_raw.strip():
-                st.warning("⚠️ Resume text is empty. Possibly unreadable or not a PDF.")
+                # Optional: show warning if you want
+                # st.warning("⚠️ Resume text is empty. Possibly unreadable or not a PDF.")
                 continue
-
             resume_clean = clean_text(resume_raw)
             jd_clean = clean_text(job.get('job_description', ''))
-
             score, details = calculate_ats_score(
                 resume_clean,
                 jd_clean,
@@ -120,8 +113,17 @@ if jobs and applications:
                 job.get('qualification', []),
                 [job.get('location', '')]
             )
+            successful_apps.append(app)
+            processed_details.append((app, file_name, score, details, resume_url))
+        
+        st.write(f"📅 Applications Found: {len(successful_apps)}")
 
-            # ==== FINAL OUTPUT SECTION ====
+        if not successful_apps:
+            st.info("No applications received yet.")
+            continue
+
+        # Only show analyzed resumes
+        for app, file_name, score, details, resume_url in processed_details:
             st.markdown(f"""
 🔗 job_uid: {app.get('job_uid')}
 
