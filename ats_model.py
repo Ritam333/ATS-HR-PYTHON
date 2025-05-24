@@ -121,9 +121,6 @@ def extract_experience(text):
     years = total_months // 12
     months = total_months % 12
     return years + months / 12, f"{years} year(s), {months} month(s)"
-print("Matched date ranges:", matches)
-print(f"Start: {start_str}, End: {end_str}, Months calculated: {months}")
-
 
 
 
