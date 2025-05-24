@@ -85,36 +85,51 @@ def parse_date_string(date_str):
 
 def extract_experience(text):
     import dateutil.parser
+    from datetime import datetime
 
-    # Normalize the text
-    text = text.lower().replace("–", "-").replace(" to ", "-")
+    # Normalize text
+    text = text.lower().replace("–", "-").replace("—", "-").replace(" to ", "-")
 
-    # Extract date ranges
-    date_ranges = re.findall(r'(\b(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?|\d{4})[- ,]*\d{0,2}[- ,]*\d{4}|\d{4})\s*[-–to]+\s*(\b(?:present|\d{4}|\w+\s+\d{4}))', text)
+    # Regex patterns for common date ranges
+    patterns = [
+        r'((?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)[ \t]*\d{0,2}[ ,\-]*(?:\d{4}))[ \t]*[-][ \t]*(present|\d{4})',
+        r'(\d{4})[ \t]*[-][ \t]*(present|\d{4})',
+        r'(\d{2}/\d{4})[ \t]*[-][ \t]*(\d{2}/\d{4}|present)'
+    ]
+
+    matches = []
+    for pattern in patterns:
+        matches.extend(re.findall(pattern, text))
 
     total_months = 0
-    experience_ranges = []
+    ranges_str = []
 
-    for start_str, end_str in date_ranges:
+    for start_str, end_str in matches:
         try:
-            start_date = dateutil.parser.parse(start_str, default=datetime(1900, 1, 1))
-            if "present" in end_str.lower():
-                end_date = datetime.today()
+            # Normalize start
+            if re.match(r'\d{2}/\d{4}', start_str):
+                start_date = datetime.strptime(start_str, '%m/%Y')
             else:
-                end_date = dateutil.parser.parse(end_str, default=datetime(1900, 1, 1))
+                start_date = dateutil.parser.parse(start_str)
+
+            # Normalize end
+            if 'present' in end_str.lower():
+                end_date = datetime.today()
+            elif re.match(r'\d{2}/\d{4}', end_str):
+                end_date = datetime.strptime(end_str, '%m/%Y')
+            else:
+                end_date = dateutil.parser.parse(end_str)
 
             months = (end_date.year - start_date.year) * 12 + (end_date.month - start_date.month)
-            total_months += max(months, 0)
-            experience_ranges.append(f"{start_date.strftime('%b %Y')} - {end_date.strftime('%b %Y') if 'present' not in end_str.lower() else 'Present'}")
+            if months > 0:
+                total_months += months
+                ranges_str.append(f"{start_date.strftime('%b %Y')} - {end_date.strftime('%b %Y') if 'present' not in end_str.lower() else 'Present'}")
 
-        except Exception:
+        except Exception as e:
             continue
 
-    total_years = round(total_months / 12, 2)
-    experience_str = ', '.join(experience_ranges) if experience_ranges else "Not Found"
-    return total_years, experience_str
-
-
+    years = round(total_months / 12, 2)
+    return years, ', '.join(ranges_str) if ranges_str else "Not Found"
 
 
 
