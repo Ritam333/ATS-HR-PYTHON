@@ -78,8 +78,8 @@ def parse_date(date_str):
     date_str = date_str.strip().replace(',', '')
     date_formats = [
         "%B %d %Y",  # February 3 2025
-        "%B %Y",     # February 2025
         "%b %d %Y",  # Feb 3 2025
+        "%B %Y",     # February 2025
         "%b %Y",     # Feb 2025
         "%Y"         # 2025
     ]
@@ -92,20 +92,20 @@ def parse_date(date_str):
         return datetime.now()
     return None
 
+
 def extract_experience(text):
     pattern = re.compile(
-        r'('
-        r'(January|February|March|April|May|June|July|August|September|October|November|December|'
-        r'Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)?\s*\d{4}'
-        r'|Present|present'
-        r')\s*[-–to]+\s*'
-        r'('
-        r'(January|February|March|April|May|June|July|August|September|October|November|December|'
-        r'Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)?\s*\d{4}'
-        r'|Present|present'
-        r')',
-        re.IGNORECASE
-    )
+    r'('
+    r'((?:January|February|March|April|May|June|July|August|September|October|November|December|'
+    r'Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)?(?:\s+\d{1,2})?\s+\d{4}'
+    r'|Present|present)'
+    r')\s*[-–to]+\s*('
+    r'((?:January|February|March|April|May|June|July|August|September|October|November|December|'
+    r'Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)?(?:\s+\d{1,2})?\s+\d{4}'
+    r'|Present|present)'
+    r')',
+    re.IGNORECASE
+)
 
     matches = pattern.findall(text)
     if not matches:
