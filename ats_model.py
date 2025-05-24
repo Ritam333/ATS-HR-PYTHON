@@ -94,6 +94,8 @@ def parse_date(date_str):
 
 
 def extract_experience(text):
+    import itertools
+
     text = text.replace('\u00A0', ' ').replace('\n', ' ').replace('\r', ' ')
     text = text.replace('–', '-').replace('—', '-')  # ✅ NEW: Handle en-dash/em-dash
     text = re.sub(r'\s+', ' ', text).strip()
