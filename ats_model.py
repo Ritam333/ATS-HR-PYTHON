@@ -75,34 +75,72 @@ def extract_skills(text, skill_list):
 
 def parse_date(date_str):
     date_str = date_str.strip().lower().replace(',', '')
-    # Add a specific format for "Month Day, Year" with optional dot after month abbreviation
+    
+    # Define a set of possible date formats to try
     formats = [
-        "%B %d %Y", "%b %d %Y", # e.g., "February 3 2025", "Feb 3 2025"
-        "%B. %d %Y", "%b. %d %Y", # e.g., "Feb. 3 2025"
-        "%B %Y", "%b %Y", "%b. %Y", # e.g., "February 2025", "Feb 2025", "Feb. 2025"
-        "%m/%Y", "%Y-%m", "%m-%Y", # e.g., "02/2025", "2025-02", "02-2025"
-        "%Y" # e.g., "2025"
+        "%B %d %Y",    # e.g., "February 3 2025", "March 15 2023"
+        "%b %d %Y",    # e.g., "Feb 3 2025", "Mar 15 2023"
+        "%B. %d %Y",   # e.g., "Feb. 3 2025" (with dot after abbreviation)
+        "%b. %d %Y",   # e.g., "Mar. 15 2023"
+
+        "%B %Y",       # e.g., "February 2025", "March 2023"
+        "%b %Y",       # e.g., "Feb 2025", "Mar 2023"
+        "%b. %Y",      # e.g., "Feb. 2025", "Mar. 2023" (with dot after abbreviation)
+
+        "%m/%Y",       # e.g., "02/2025", "3/2023"
+        "%Y-%m",       # e.g., "2025-02", "2023-03"
+        "%m-%Y",       # e.g., "02-2025", "03-2023"
+        
+        "%Y"           # e.g., "2025"
     ]
+    
+    # For date strings that only contain month and year, we'll assume the 1st day of the month
+    # This helps in consistent date object creation for calculations
     for fmt in formats:
         try:
             return datetime.strptime(date_str, fmt)
         except ValueError:
-            continue
+            # If parsing fails, try adding a default day (1) for month-year formats
+            if "%B %Y" in fmt or "%b %Y" in fmt or "%b. %Y" in fmt:
+                try:
+                    return datetime.strptime(f"1 {date_str}", f"%d {fmt}")
+                except ValueError:
+                    pass
+            elif "%m/%Y" in fmt or "%Y-%m" in fmt or "%m-%Y" in fmt:
+                try:
+                    # For MM/YYYY, YYYY-MM, MM-YYYY, assume day 1
+                    parts = re.split(r'[/-]', date_str)
+                    if len(parts) == 2:
+                        if len(parts[0]) == 4: # YYYY-MM
+                            return datetime.strptime(f"{parts[0]}-{parts[1]}-01", "%Y-%m-%d")
+                        else: # MM/YYYY or MM-YYYY
+                            return datetime.strptime(f"{parts[0]}-{parts[1]}-01", "%m-%Y-%d")
+                except ValueError:
+                    pass
+            elif fmt == "%Y":
+                try:
+                    return datetime.strptime(f"1 {date_str}", "%j %Y") # Day 1 of the year
+                except ValueError:
+                    pass
     return None
-
-
 
 def extract_experience(text):
     text = text.lower()
     total_months = 0
 
-    # Patterns for different date formats, including those with "present" and "to"
+    # Improved patterns to capture various date formats including 'present' and 'to'
+    # Prioritize more specific patterns (with day) before less specific ones (month/year only)
     patterns = [
-        r'([a-z]{3,9}\.? \d{1,2},? \d{4})\s*(?:-|–|to)\s*(present|[a-z]{3,9}\.? \d{1,2},? \d{4})', # Month Day, Year - Present/Month Day, Year
-        r'([a-z]{3,9}\.? \d{4})\s*(?:-|–|to)\s*(present|[a-z]{3,9}\.? \d{4})', # Month Year - Present/Month Year
-        r'(\d{1,2}/\d{4})\s*(?:-|–|to)\s*(present|\d{1,2}/\d{4})', # MM/YYYY - Present/MM/YYYY
-        r'(\d{4})\s*(?:-|–|to)\s*(present|\d{4})', # YYYY - Present/YYYY
-        r'(\d{4}-\d{2})\s*(?:-|–|to)\s*(present|\d{4}-\d{2})' # YYYY-MM - Present/YYYY-MM
+        # Pattern 1: Month Day, Year - Month Day, Year or Present
+        r'([a-z]{3,9}\.? \d{1,2},? \d{4})\s*(?:-|–|to)\s*(present|[a-z]{3,9}\.? \d{1,2},? \d{4})',
+        # Pattern 2: Month Year - Month Year or Present
+        r'([a-z]{3,9}\.? \d{4})\s*(?:-|–|to)\s*(present|[a-z]{3,9}\.? \d{4})',
+        # Pattern 3: MM/YYYY - MM/YYYY or Present
+        r'(\d{1,2}/\d{4})\s*(?:-|–|to)\s*(present|\d{1,2}/\d{4})',
+        # Pattern 4: YYYY-MM - YYYY-MM or Present (e.g., 2023-01 - 2024-12)
+        r'(\d{4}-\d{2})\s*(?:-|–|to)\s*(present|\d{4}-\d{2})',
+        # Pattern 5: YYYY - YYYY or Present
+        r'(\d{4})\s*(?:-|–|to)\s*(present|\d{4})'
     ]
 
     matches = []
@@ -111,31 +149,38 @@ def extract_experience(text):
 
     for start_str, end_str in matches:
         start_date = parse_date(start_str)
-        end_date = datetime.today() if "present" in end_str else parse_date(end_str)
+        
+        # Handle "present" by setting end_date to today
+        if "present" in end_str:
+            end_date = datetime.today()
+        else:
+            end_date = parse_date(end_str)
 
         if not start_date or not end_date:
             continue
 
-        # Calculate the difference in months
-        months_diff = (end_date.year - start_date.year) * 12 + (end_date.month - start_date.month)
+        # Ensure start_date is always before or equal to end_date
+        if start_date > end_date:
+            continue # Skip invalid ranges
 
-        # If the start date is later than the end date (e.g., February 2025 to January 2024), skip or adjust
-        if months_diff < 0:
-            continue
+        # Calculate the total number of months
+        # Add 1 to include the current month in the calculation
+        # This handles cases like Feb 3, 2025 - Feb 28, 2025 being 1 month
+        months_diff = (end_date.year - start_date.year) * 12 + (end_date.month - start_date.month) + 1
         
-        # Add 1 month if the day of the month is later than the day of the start date. 
-        # This handles cases like "Feb 3, 2025 - Feb 28, 2025" being 0 months, when it should be 1.
-        if end_date.day >= start_date.day:
-            months_diff += 1
-
-
         total_months += months_diff
 
     years = total_months // 12
     months = total_months % 12
+    
+    # Adjust if months_diff is 0, but it spans across a partial month.
+    # For example, if it's "Feb 28, 2025 - Mar 3, 2025", the above will give 1 month.
+    # If the experience is less than a month but present, it should still show 1 month.
+    if total_months == 0 and matches and "present" in text:
+        total_months = 1 # At least 1 month if "present" is there and no full month is calculated yet.
+
+
     return years + months / 12, f"{years} year(s), {months} month(s)"
-
-
 
 
 
