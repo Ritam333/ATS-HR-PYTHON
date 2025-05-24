@@ -75,12 +75,11 @@ def extract_skills(text, skill_list):
 
 
 def parse_date(date_str):
-    date_str = date_str.strip().lower()
+    date_str = date_str.strip().lower().replace(',', '')
     formats = [
-        "%B %d, %Y", "%B %d %Y",
-        "%b %d, %Y", "%b %d %Y",
-        "%B %Y", "%b %Y",
-        "%m/%Y", "%Y"
+        "%B %d %Y", "%b %d %Y",    # February 3 2025 / Feb 3 2025
+        "%B %Y", "%b %Y",          # February 2025 / Feb 2025
+        "%m/%Y", "%Y"              # 02/2025 / 2025
     ]
     for fmt in formats:
         try:
@@ -90,35 +89,26 @@ def parse_date(date_str):
     return None
 
 
-
-
-
-
-
 def extract_experience(text):
     text = text.lower()
     total_months = 0
 
     patterns = [
-    r'([a-z]{3,9}\s+\d{1,2},?\s+\d{4})\s*(?:-|–|to)\s*(present|[a-z]{3,9}\s+\d{1,2},?\s+\d{4})',
-    r'([a-z]{3,9}\s+\d{4})\s*(?:-|–|to)\s*(present|[a-z]{3,9}\s+\d{4})',
-    r'(\d{1,2}/\d{4})\s*(?:-|–|to)\s*(present|\d{1,2}/\d{4})',
-    r'(\d{4})\s*(?:-|–|to)\s*(present|\d{4})'
-]
+        r'([a-z]{3,9}\s+\d{1,2},?\s+\d{4})\s*(?:-|–|to)\s*(present|[a-z]{3,9}\s+\d{1,2},?\s+\d{4})',
+        r'([a-z]{3,9}\s+\d{4})\s*(?:-|–|to)\s*(present|[a-z]{3,9}\s+\d{4})',
+        r'(\d{1,2}/\d{4})\s*(?:-|–|to)\s*(present|\d{1,2}/\d{4})',
+        r'(\d{4})\s*(?:-|–|to)\s*(present|\d{4})'
+    ]
 
-
+    matches = []
     for pattern in patterns:
         matches = re.findall(pattern, text)
         if matches:
-            break
-
-    print("Matched date ranges:", matches)
+            break  # Stop at the first pattern that works
 
     for start_str, end_str in matches:
         start_date = parse_date(start_str)
         end_date = datetime.today() if "present" in end_str else parse_date(end_str)
-
-        print(f"Parsed: {start_str} -> {start_date}, {end_str} -> {end_date}")
 
         if not start_date or not end_date:
             continue
@@ -131,6 +121,8 @@ def extract_experience(text):
     years = total_months // 12
     months = total_months % 12
     return years + months / 12, f"{years} year(s), {months} month(s)"
+
+
 
 
 
