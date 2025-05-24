@@ -75,11 +75,13 @@ def extract_skills(text, skill_list):
 
 def parse_date(date_str):
     date_str = date_str.strip().lower().replace(',', '')
+    # Add a specific format for "Month Day, Year" with optional dot after month abbreviation
     formats = [
-        "%B %d %Y", "%b %d %Y",
-        "%B %Y", "%b %Y", "%b. %Y",
-        "%m/%Y", "%Y-%m", "%m-%Y",
-        "%Y"
+        "%B %d %Y", "%b %d %Y", # e.g., "February 3 2025", "Feb 3 2025"
+        "%B. %d %Y", "%b. %d %Y", # e.g., "Feb. 3 2025"
+        "%B %Y", "%b %Y", "%b. %Y", # e.g., "February 2025", "Feb 2025", "Feb. 2025"
+        "%m/%Y", "%Y-%m", "%m-%Y", # e.g., "02/2025", "2025-02", "02-2025"
+        "%Y" # e.g., "2025"
     ]
     for fmt in formats:
         try:
@@ -89,22 +91,23 @@ def parse_date(date_str):
     return None
 
 
+
 def extract_experience(text):
     text = text.lower()
     total_months = 0
 
-    # Improved pattern allowing dot after month abbreviations, spaces around hyphen, and "to"
+    # Patterns for different date formats, including those with "present" and "to"
     patterns = [
-        r'([a-z]{3,9}\.? \d{1,2},? \d{4})\s*(?:-|–|to)\s*(present|[a-z]{3,9}\.? \d{1,2},? \d{4})',
-        r'([a-z]{3,9}\.? \d{4})\s*(?:-|–|to)\s*(present|[a-z]{3,9}\.? \d{4})',
-        r'(\d{1,2}/\d{4})\s*(?:-|–|to)\s*(present|\d{1,2}/\d{4})',
-        r'(\d{4})\s*(?:-|–|to)\s*(present|\d{4})',
-        r'(\d{4}-\d{2})\s*(?:-|–|to)\s*(present|\d{4}-\d{2})'  # YYYY-MM format
+        r'([a-z]{3,9}\.? \d{1,2},? \d{4})\s*(?:-|–|to)\s*(present|[a-z]{3,9}\.? \d{1,2},? \d{4})', # Month Day, Year - Present/Month Day, Year
+        r'([a-z]{3,9}\.? \d{4})\s*(?:-|–|to)\s*(present|[a-z]{3,9}\.? \d{4})', # Month Year - Present/Month Year
+        r'(\d{1,2}/\d{4})\s*(?:-|–|to)\s*(present|\d{1,2}/\d{4})', # MM/YYYY - Present/MM/YYYY
+        r'(\d{4})\s*(?:-|–|to)\s*(present|\d{4})', # YYYY - Present/YYYY
+        r'(\d{4}-\d{2})\s*(?:-|–|to)\s*(present|\d{4}-\d{2})' # YYYY-MM - Present/YYYY-MM
     ]
 
     matches = []
     for pattern in patterns:
-        matches += re.findall(pattern, text)
+        matches.extend(re.findall(pattern, text))
 
     for start_str, end_str in matches:
         start_date = parse_date(start_str)
@@ -113,10 +116,20 @@ def extract_experience(text):
         if not start_date or not end_date:
             continue
 
-        months = (end_date.year - start_date.year) * 12 + (end_date.month - start_date.month)
-        if months < 0:
+        # Calculate the difference in months
+        months_diff = (end_date.year - start_date.year) * 12 + (end_date.month - start_date.month)
+
+        # If the start date is later than the end date (e.g., February 2025 to January 2024), skip or adjust
+        if months_diff < 0:
             continue
-        total_months += months
+        
+        # Add 1 month if the day of the month is later than the day of the start date. 
+        # This handles cases like "Feb 3, 2025 - Feb 28, 2025" being 0 months, when it should be 1.
+        if end_date.day >= start_date.day:
+            months_diff += 1
+
+
+        total_months += months_diff
 
     years = total_months // 12
     months = total_months % 12
