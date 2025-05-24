@@ -73,14 +73,9 @@ def extract_skills(text, skill_list):
 
 
 
-def parse_date(date_str):
-    date_str = date_str.lower().strip().replace(',', '')
-    formats = [
-        "%B %d %Y", "%b %d %Y",
-        "%B %Y", "%b %Y",
-        "%m/%Y", "%Y-%m",
-        "%Y"
-    ]
+def parse_date_string(date_str):
+    date_str = date_str.strip().lower().replace(",", "")
+    formats = ["%B %d %Y", "%B %Y", "%b %d %Y", "%b %Y", "%Y"]
     for fmt in formats:
         try:
             return datetime.strptime(date_str, fmt)
@@ -93,50 +88,32 @@ def extract_experience(text):
     total_months = 0
     current_date = datetime.today()
 
-    # Regex pattern for any possible date range in flattened text
+    # Match "february 3, 2025 - present" or similar patterns
     pattern = re.compile(
-        r'(?:(\b(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|'
-        r'jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)[ ]?\d{0,2}[,]?[ ]?)?(\d{4}))'
-        r'\s*[-to–]{1,3}\s*'
-        r'(?:(present)|(?:(\b(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|'
-        r'jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)[ ]?\d{0,2}[,]?[ ]?)?(\d{4})))'
+        r'([a-z]+(?: \d{1,2})?,? \d{4})\s*[-–to]+\s*(present|[a-z]+(?: \d{1,2})?,? \d{4})',
+        flags=re.IGNORECASE
     )
 
     matches = pattern.findall(text)
     if not matches:
         return 0, "0 year(s), 0 month(s)"
 
-    for match in matches:
-        # Grouped matches: month1, year1, 'present', month2, year2
-        start_month_str = match[0] or ''
-        start_year_str = match[1]
-        end_month_str = match[3] or ''
-        end_year_str = match[4]
-        is_present = match[2] == 'present'
+    for start_str, end_str in matches:
+        start_date = parse_date_string(start_str)
+        end_date = current_date if end_str == "present" else parse_date_string(end_str)
 
-        start_date = parse_date(f"{start_month_str} {start_year_str}".strip())
-        if not start_date:
+        if not start_date or not end_date:
             continue
-
-        if is_present:
-            end_date = current_date
-        else:
-            end_date = parse_date(f"{end_month_str} {end_year_str}".strip())
-            if not end_date:
-                continue
 
         if start_date > end_date:
             continue
 
-        # Compute total months between start and end
         months = (end_date.year - start_date.year) * 12 + (end_date.month - start_date.month) + 1
         total_months += months
 
     years = total_months // 12
     months = total_months % 12
     return round(years + months / 12, 2), f"{years} year(s), {months} month(s)"
-
-
 
 
 
