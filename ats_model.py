@@ -74,59 +74,67 @@ def extract_skills(text, skill_list):
 
 
 def parse_date(date_str):
-    date_str = date_str.strip().lower().replace(',', '')
+    date_str = date_str.lower().strip().replace(',', '')
     formats = [
-        "%B %d %Y",    # February 3 2025
-        "%b %d %Y",    # Feb 3 2025
-        "%B %Y",       # February 2025
-        "%b %Y",       # Feb 2025
-        "%m/%Y",       # 06/2018
-        "%Y-%m",       # 2025-02
-        "%Y"           # 2025
+        "%B %d %Y", "%b %d %Y",
+        "%B %Y", "%b %Y",
+        "%m/%Y", "%Y-%m",
+        "%Y"
     ]
     for fmt in formats:
         try:
-            dt = datetime.strptime(date_str, fmt)
-            return datetime(dt.year, dt.month if dt.month else 1, dt.day if '%d' in fmt else 1)
-        except:
-            pass
+            return datetime.strptime(date_str, fmt)
+        except ValueError:
+            continue
     return None
 
 def extract_experience(text):
     text = text.lower()
     total_months = 0
-    
-    # Updated pattern to accept day number as well
+    current_date = datetime.today()
+
+    # Regex pattern for any possible date range in flattened text
     pattern = re.compile(
-        r'([a-z]{3,9} \d{1,2},? \d{4}|[a-z]{3,9} \d{4}|\d{1,2}/\d{4}|\d{4}-\d{2}|\d{4})\s*(?:-|to|–)\s*(present|[a-z]{3,9} \d{1,2},? \d{4}|[a-z]{3,9} \d{4}|\d{1,2}/\d{4}|\d{4}-\d{2}|\d{4})'
+        r'(?:(\b(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|'
+        r'jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)[ ]?\d{0,2}[,]?[ ]?)?(\d{4}))'
+        r'\s*[-to–]{1,3}\s*'
+        r'(?:(present)|(?:(\b(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|'
+        r'jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)[ ]?\d{0,2}[,]?[ ]?)?(\d{4})))'
     )
-    
+
     matches = pattern.findall(text)
     if not matches:
         return 0, "0 year(s), 0 month(s)"
-    
-    for start_str, end_str in matches:
-        start_date = parse_date(start_str)
+
+    for match in matches:
+        # Grouped matches: month1, year1, 'present', month2, year2
+        start_month_str = match[0] or ''
+        start_year_str = match[1]
+        end_month_str = match[3] or ''
+        end_year_str = match[4]
+        is_present = match[2] == 'present'
+
+        start_date = parse_date(f"{start_month_str} {start_year_str}".strip())
         if not start_date:
             continue
-        
-        if end_str == 'present':
-            end_date = datetime.today()
+
+        if is_present:
+            end_date = current_date
         else:
-            end_date = parse_date(end_str)
+            end_date = parse_date(f"{end_month_str} {end_year_str}".strip())
             if not end_date:
                 continue
-        
+
         if start_date > end_date:
             continue
-        
-        months_diff = (end_date.year - start_date.year) * 12 + (end_date.month - start_date.month) + 1
-        total_months += months_diff
-    
+
+        # Compute total months between start and end
+        months = (end_date.year - start_date.year) * 12 + (end_date.month - start_date.month) + 1
+        total_months += months
+
     years = total_months // 12
     months = total_months % 12
-    return years + months / 12, f"{years} year(s), {months} month(s)"
-
+    return round(years + months / 12, 2), f"{years} year(s), {months} month(s)"
 
 
 
