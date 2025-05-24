@@ -6,6 +6,7 @@ import numpy as np
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 from datetime import datetime
+import dateutil.parser  # required for flexible date parsing
 
 
 model = SentenceTransformer('all-MiniLM-L6-v2')
@@ -84,52 +85,38 @@ def parse_date_string(date_str):
     return None
 
 def extract_experience(text):
-    import dateutil.parser
-    from datetime import datetime
+    text = text.lower()
+    text = text.replace("–", "-").replace("—", "-").replace(" to ", " - ")
 
-    # Normalize text
-    text = text.lower().replace("–", "-").replace("—", "-").replace(" to ", "-")
-
-    # Regex patterns for common date ranges
-    patterns = [
-        r'((?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)[ \t]*\d{0,2}[ ,\-]*(?:\d{4}))[ \t]*[-][ \t]*(present|\d{4})',
-        r'(\d{4})[ \t]*[-][ \t]*(present|\d{4})',
-        r'(\d{2}/\d{4})[ \t]*[-][ \t]*(\d{2}/\d{4}|present)'
+    date_patterns = [
+        r'((?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+\d{4})\s*-\s*(present|\d{4})',
+        r'(\d{4})\s*-\s*(present|\d{4})',
+        r'(\d{2}/\d{4})\s*-\s*(\d{2}/\d{4}|present)',
     ]
 
     matches = []
-    for pattern in patterns:
-        matches.extend(re.findall(pattern, text))
+    for pattern in date_patterns:
+        matches += re.findall(pattern, text)
 
     total_months = 0
-    ranges_str = []
+    readable_ranges = []
 
     for start_str, end_str in matches:
         try:
-            # Normalize start
-            if re.match(r'\d{2}/\d{4}', start_str):
-                start_date = datetime.strptime(start_str, '%m/%Y')
-            else:
-                start_date = dateutil.parser.parse(start_str)
-
-            # Normalize end
-            if 'present' in end_str.lower():
-                end_date = datetime.today()
-            elif re.match(r'\d{2}/\d{4}', end_str):
-                end_date = datetime.strptime(end_str, '%m/%Y')
-            else:
-                end_date = dateutil.parser.parse(end_str)
-
-            months = (end_date.year - start_date.year) * 12 + (end_date.month - start_date.month)
+            start = dateutil.parser.parse(start_str)
+            end = datetime.today() if 'present' in end_str.lower() else dateutil.parser.parse(end_str)
+            months = (end.year - start.year) * 12 + (end.month - start.month)
             if months > 0:
                 total_months += months
-                ranges_str.append(f"{start_date.strftime('%b %Y')} - {end_date.strftime('%b %Y') if 'present' not in end_str.lower() else 'Present'}")
-
-        except Exception as e:
+                readable_ranges.append(f"{start.strftime('%b %Y')} - {end.strftime('%b %Y') if 'present' not in end_str.lower() else 'Present'}")
+        except:
             continue
 
-    years = round(total_months / 12, 2)
-    return years, ', '.join(ranges_str) if ranges_str else "Not Found"
+    total_years = round(total_months / 12, 2)
+    return total_years, ', '.join(readable_ranges) if readable_ranges else "Not Found"
+
+
+
 
 
 
@@ -171,6 +158,8 @@ def calculate_ats_score(resume_text, jd_text, skills, exp, edu_keywords, locatio
     return round(final_score, 2), {
         "cosine_similarity": round(cosine_score, 2),
         "skills_matched": list(matched_skills),
+       
+
         "experience_years": resume_exp_str,
 
         "education_matched": bool(edu_score),
