@@ -95,6 +95,7 @@ def parse_date(date_str):
 
 def extract_experience(text):
     text = text.replace('\u00A0', ' ').replace('\n', ' ').replace('\r', ' ')
+    text = text.replace('–', '-').replace('—', '-')  # ✅ NEW: Handle en-dash/em-dash
     text = re.sub(r'\s+', ' ', text).strip()
 
     # Patterns for date ranges (e.g. Jan 2020 - Present, Mar 2022 to Feb 2023)
