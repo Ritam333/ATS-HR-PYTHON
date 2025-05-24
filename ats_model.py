@@ -8,11 +8,51 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 model = SentenceTransformer('all-MiniLM-L6-v2')
 
+
+# Qualification abbreviation to full-form mapping
+QUALIFICATION_MAP = {
+    "mca": ["master of computer application", "master in computer application", "m.c.a"],
+    "btech": ["bachelor of technology", "b.tech", "bachelor in technology"],
+    "bsc": ["bachelor of science", "b.sc"],
+    "msc": ["master of science", "m.sc"],
+    "mba": ["master of business administration"],
+    "diploma": ["diploma"],
+    "bcom": ["bachelor of commerce", "b.com"],
+    "be": ["bachelor of engineering", "b.e"]
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
 def clean_text(text: str) -> str:
     text = text.lower()
     text = re.sub(r'[^a-zA-Z0-9\s]', '', text)
     text = re.sub(r'\s+', ' ', text).strip()
     return text
+
+
+
+
+
+def normalize_qualification(text):
+    text = text.lower()
+    for abbr, full_forms in QUALIFICATION_MAP.items():
+        for form in full_forms:
+            if form in text:
+                return abbr
+    return None
+
+
+
 
 def extract_text_from_pdf_url(url: str) -> str:
     try:
@@ -29,9 +69,18 @@ def extract_experience(text):
     match = re.search(r'(\d+)\+?\s+years', text.lower())
     return int(match.group(1)) if match else 0
 
-def check_education(text, keywords):
-    text = text.lower()
-    return any(edu.lower() in text for edu in keywords)
+def education_match(resume_text, required_qualifications):
+    resume_text = resume_text.lower()
+    resume_qualifications = set()
+
+    for line in resume_text.splitlines():
+        normalized = normalize_qualification(line)
+        if normalized:
+            resume_qualifications.add(normalized)
+
+    required_abbr = {q.lower() for q in required_qualifications}
+    return bool(resume_qualifications.intersection(required_abbr))
+
 
 def check_location(text, locations):
     text = text.lower()
@@ -46,7 +95,7 @@ def calculate_ats_score(resume_text, jd_text, skills, exp, edu_keywords, locatio
     skill_score = len(matched_skills) / len(skills) if skills else 0
     resume_exp = extract_experience(resume_text)
     exp_score = min(resume_exp / exp, 1) if exp else 0
-    edu_score = check_education(resume_text, edu_keywords)
+    edu_score = education_match(resume_text, edu_keywords)
     loc_score = check_location(resume_text, locations)
 
     final_score = (cosine_score * 0.5 + skill_score * 0.2 + exp_score * 0.1 + edu_score * 0.1 + loc_score * 0.1) * 100
