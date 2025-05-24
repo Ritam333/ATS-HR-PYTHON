@@ -75,9 +75,10 @@ def extract_skills(text, skill_list):
 
 
 def parse_date(date_str):
-    date_str = date_str.strip().replace(',', '').lower()
+    date_str = date_str.strip().lower()
     formats = [
-        "%B %d %Y", "%b %d %Y",
+        "%B %d, %Y", "%B %d %Y",
+        "%b %d, %Y", "%b %d %Y",
         "%B %Y", "%b %Y",
         "%m/%Y", "%Y"
     ]
@@ -99,11 +100,12 @@ def extract_experience(text):
     total_months = 0
 
     patterns = [
-        r'([a-z]{3,9}\s+\d{1,2},?\s*\d{4})\s*[-–to]+\s*(present|[a-z]{3,9}\s+\d{1,2},?\s*\d{4})',
-        r'([a-z]{3,9}\s+\d{4})\s*[-–to]+\s*(present|[a-z]{3,9}\s+\d{4})',
-        r'(\d{1,2}/\d{4})\s*[-–to]+\s*(present|\d{1,2}/\d{4})',
-        r'(\d{4})\s*[-–to]+\s*(present|\d{4})'
-    ]
+    r'([a-z]{3,9}\s+\d{1,2},?\s+\d{4})\s*(?:-|–|to)\s*(present|[a-z]{3,9}\s+\d{1,2},?\s+\d{4})',
+    r'([a-z]{3,9}\s+\d{4})\s*(?:-|–|to)\s*(present|[a-z]{3,9}\s+\d{4})',
+    r'(\d{1,2}/\d{4})\s*(?:-|–|to)\s*(present|\d{1,2}/\d{4})',
+    r'(\d{4})\s*(?:-|–|to)\s*(present|\d{4})'
+]
+
 
     for pattern in patterns:
         matches = re.findall(pattern, text)
