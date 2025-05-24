@@ -83,39 +83,40 @@ def parse_date_string(date_str):
             continue
     return None
 
-def extract_experience(text):
-    text = text.lower()
-    total_months = 0
-    current_date = datetime.today()
-
-    # Improved regex: supports "february 3 2025 - present"
-    pattern = re.compile(
-        r'([a-z]+(?: \d{1,2})? ?\d{4})\s*[-–to]+\s*(present|[a-z]+(?: \d{1,2})? ?\d{4})',
-        flags=re.IGNORECASE
-    )
-
-    matches = pattern.findall(text)
-    if not matches:
-        print("❌ No matches found.")
-        return 0, "0 year(s), 0 month(s)"
-
-    for start_str, end_str in matches:
-        start_date = parse_date_string(start_str)
-        end_date = current_date if 'present' in end_str else parse_date_string(end_str)
-
-        if not start_date or not end_date:
-            continue
-
-        if start_date > end_date:
-            continue
-
-        months = (end_date.year - start_date.year) * 12 + (end_date.month - start_date.month) + 1
-        total_months += months
-
-    years = total_months // 12
-    months = total_months % 12
-    return round(years + months / 12, 2), f"{years} year(s), {months} month(s)"
-
+def extract_dates(text):
+    # Define multiple regex patterns for common date formats
+    date_patterns = [
+        # e.g. February 3, 2025
+        r'\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},?\s+\d{4}',
+        
+        # e.g. 2022 - 2024 or 2019–2022 or 2019 to 2022
+        r'\b\d{4}\s*[-–to]+\s*(\d{4}|Present|present)\b',
+        
+        # e.g. just the year: 2022
+        r'\b\d{4}\b',
+        
+        # e.g. Present
+        r'\b(Present|present)\b'
+    ]
+    
+    # Combine all patterns
+    combined_pattern = '|'.join(date_patterns)
+    
+    # Find all matches
+    matches = re.findall(combined_pattern, text)
+    
+    # Flatten and clean up matches
+    flat_matches = []
+    for match in matches:
+        if isinstance(match, tuple):
+            for m in match:
+                if m:
+                    flat_matches.append(m.strip())
+        elif match:
+            flat_matches.append(match.strip())
+    
+    # Deduplicate and return
+    return sorted(set(flat_matches))
 
 
 
