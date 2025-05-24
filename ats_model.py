@@ -75,14 +75,11 @@ def extract_skills(text, skill_list):
 
 
 def parse_date(date_str):
-    date_str = date_str.strip().replace(',', '')
+    date_str = date_str.strip().replace(',', '').lower()
     formats = [
-        "%B %d %Y",  # February 3 2025
-        "%b %d %Y",  # Feb 3 2025
-        "%B %Y",     # February 2025
-        "%b %Y",     # Feb 2025
-        "%B %d %Y",  # March 3 2020
-        "%b %d %Y",  # Mar 3 2020
+        "%B %d %Y", "%b %d %Y",
+        "%B %Y", "%b %Y",
+        "%m/%Y", "%Y"
     ]
     for fmt in formats:
         try:
@@ -92,25 +89,34 @@ def parse_date(date_str):
     return None
 
 
+
+
+
+
+
 def extract_experience(text):
     text = text.lower()
     total_months = 0
 
-    # Regex to capture date ranges (e.g., "February 3, 2025 - Present")
-    date_pattern = r'([a-z]{3,9}\s+\d{1,2},?\s*\d{4})\s*[-–to]+\s*(present|[a-z]{3,9}\s+\d{1,2},?\s*\d{4})'
-    matches = re.findall(date_pattern, text)
+    patterns = [
+        r'([a-z]{3,9}\s+\d{1,2},?\s*\d{4})\s*[-–to]+\s*(present|[a-z]{3,9}\s+\d{1,2},?\s*\d{4})',
+        r'([a-z]{3,9}\s+\d{4})\s*[-–to]+\s*(present|[a-z]{3,9}\s+\d{4})',
+        r'(\d{1,2}/\d{4})\s*[-–to]+\s*(present|\d{1,2}/\d{4})',
+        r'(\d{4})\s*[-–to]+\s*(present|\d{4})'
+    ]
 
-    if not matches:
-        # fallback: match month year only (e.g., "Feb 2025 - Present")
-        date_pattern_simple = r'([a-z]{3,9}\s+\d{4})\s*[-–to]+\s*(present|[a-z]{3,9}\s+\d{4})'
-        matches = re.findall(date_pattern_simple, text)
+    for pattern in patterns:
+        matches = re.findall(pattern, text)
+        if matches:
+            break
 
-    print("Matched date ranges:", matches)  # ✅ Add this line
+    print("Matched date ranges:", matches)
 
     for start_str, end_str in matches:
         start_date = parse_date(start_str)
         end_date = datetime.today() if "present" in end_str else parse_date(end_str)
-        print(f"Parsed: {start_str} -> {start_date}, {end_str} -> {end_date}")  # ✅ Add this line
+
+        print(f"Parsed: {start_str} -> {start_date}, {end_str} -> {end_date}")
 
         if not start_date or not end_date:
             continue
@@ -123,7 +129,6 @@ def extract_experience(text):
     years = total_months // 12
     months = total_months % 12
     return years + months / 12, f"{years} year(s), {months} month(s)"
-
 
 
 
