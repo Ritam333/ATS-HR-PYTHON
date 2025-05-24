@@ -114,7 +114,7 @@ def extract_experience(text):
 
     years = total_months // 12
     months = total_months % 12
-    return round(years + months / 12, 2), f"{years} year(s), {months} month(s)"c
+    return round(years + months / 12, 2), f"{years} year(s), {months} month(s)"
 
 
 
