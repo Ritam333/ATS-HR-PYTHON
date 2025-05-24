@@ -76,9 +76,10 @@ def extract_skills(text, skill_list):
 def parse_date(date_str):
     date_str = date_str.strip().lower().replace(',', '')
     formats = [
-        "%B %d %Y", "%b %d %Y",    # February 3 2025 / Feb 3 2025
-        "%B %Y", "%b %Y",          # February 2025 / Feb 2025
-        "%m/%Y", "%Y"              # 02/2025 / 2025
+        "%B %d %Y", "%b %d %Y",
+        "%B %Y", "%b %Y", "%b. %Y",
+        "%m/%Y", "%Y-%m", "%m-%Y",
+        "%Y"
     ]
     for fmt in formats:
         try:
@@ -88,16 +89,17 @@ def parse_date(date_str):
     return None
 
 
-
 def extract_experience(text):
     text = text.lower()
     total_months = 0
 
+    # Improved pattern allowing dot after month abbreviations, spaces around hyphen, and "to"
     patterns = [
-        r'([a-z]{3,9}\s+\d{1,2},?\s+\d{4})\s*(?:-|–|to)\s*(present|[a-z]{3,9}\s+\d{1,2},?\s+\d{4})',
-        r'([a-z]{3,9}\s+\d{4})\s*(?:-|–|to)\s*(present|[a-z]{3,9}\s+\d{4})',
+        r'([a-z]{3,9}\.? \d{1,2},? \d{4})\s*(?:-|–|to)\s*(present|[a-z]{3,9}\.? \d{1,2},? \d{4})',
+        r'([a-z]{3,9}\.? \d{4})\s*(?:-|–|to)\s*(present|[a-z]{3,9}\.? \d{4})',
         r'(\d{1,2}/\d{4})\s*(?:-|–|to)\s*(present|\d{1,2}/\d{4})',
-        r'(\d{4})\s*(?:-|–|to)\s*(present|\d{4})'
+        r'(\d{4})\s*(?:-|–|to)\s*(present|\d{4})',
+        r'(\d{4}-\d{2})\s*(?:-|–|to)\s*(present|\d{4}-\d{2})'  # YYYY-MM format
     ]
 
     matches = []
@@ -119,13 +121,9 @@ def extract_experience(text):
     years = total_months // 12
     months = total_months % 12
     return years + months / 12, f"{years} year(s), {months} month(s)"
+print("Matched date ranges:", matches)
+print(f"Start: {start_str}, End: {end_str}, Months calculated: {months}")
 
-
-text = """
-Software Engineer
-February 3, 2023 - Present
-"""
-print(extract_experience(text))
 
 
 
