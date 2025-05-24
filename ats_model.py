@@ -94,23 +94,19 @@ def parse_date(date_str):
 
 
 def extract_experience(text):
+    # Pattern matches full date ranges like "February 3, 2025 - Present" or "Feb 2023 - Apr 2024"
     pattern = re.compile(
-    r'('
-    r'(January|February|March|April|May|June|July|August|September|October|November|December|'
-    r'Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)'
-    r'(?:\s+\d{1,2})?,?\s+\d{4}|Present|present'
-    r')\s*[-–to]+\s*('
-    r'(January|February|March|April|May|June|July|August|September|October|November|December|'
-    r'Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)'
-    r'(?:\s+\d{1,2})?,?\s+\d{4}|Present|present'
-    r')',
-    re.IGNORECASE
-)
-
+        r'((?:January|February|March|April|May|June|July|August|September|October|November|December|'
+        r'Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)(?:\s+\d{1,2})?,?\s+\d{4}|Present|present)'
+        r'\s*[-–to]+\s*'
+        r'((?:January|February|March|April|May|June|July|August|September|October|November|December|'
+        r'Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)(?:\s+\d{1,2})?,?\s+\d{4}|Present|present)',
+        re.IGNORECASE
+    )
 
     matches = pattern.findall(text)
     if not matches:
-        # No ranges found - try single years to estimate experience roughly
+        # Fallback: try single years if no range is found
         single_years = re.findall(r'\b(19|20)\d{2}\b', text)
         if single_years:
             years = [int(y) for y in single_years]
@@ -120,10 +116,7 @@ def extract_experience(text):
             return 0, "Not Found"
 
     total_months = 0
-    for match in matches:
-        start_str = match[0]
-        end_str = match[2]
-
+    for start_str, end_str in matches:
         start_date = parse_date(start_str)
         end_date = parse_date(end_str)
 
@@ -147,6 +140,12 @@ def extract_experience(text):
         exp_str = f"{months} months"
 
     return total_months, exp_str
+
+
+
+
+
+
 
 
 
