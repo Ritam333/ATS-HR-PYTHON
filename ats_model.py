@@ -88,13 +88,11 @@ def parse_date(date_str):
             return datetime.strptime(date_str, fmt)
         except:
             continue
-    # If "Present" found, return current date
     if date_str.lower() == "present":
         return datetime.now()
     return None
 
 def extract_experience(text):
-    # Regex to find date ranges like "Feb 2019 - Present", "2018 to 2020", "February 2017 - Feb 2021"
     pattern = re.compile(
         r'('
         r'(January|February|March|April|May|June|July|August|September|October|November|December|'
@@ -111,12 +109,12 @@ def extract_experience(text):
 
     matches = pattern.findall(text)
     if not matches:
-        # Try to find single years only if no ranges found
+        # No ranges found - try single years to estimate experience roughly
         single_years = re.findall(r'\b(19|20)\d{2}\b', text)
         if single_years:
             years = [int(y) for y in single_years]
-            exp_years = max(years) - min(years)
-            return exp_years, f"{exp_years} years"
+            exp_months = (max(years) - min(years)) * 12
+            return exp_months, f"{exp_months} months"
         else:
             return 0, "Not Found"
 
@@ -131,16 +129,23 @@ def extract_experience(text):
         if start_date and end_date:
             delta = (end_date.year - start_date.year) * 12 + (end_date.month - start_date.month)
             if delta < 0:
-                delta = 0  # Ignore negative durations
+                delta = 0
             total_months += delta
 
-    years_exp = round(total_months / 12, 2)
-    if years_exp == 0:
+    if total_months == 0:
         return 0, "Not Found"
+
+    years = total_months // 12
+    months = total_months % 12
+
+    if years > 0 and months > 0:
+        exp_str = f"{years} years and {months} months"
+    elif years > 0:
+        exp_str = f"{years} years"
     else:
-        return years_exp, f"{years_exp} years"
+        exp_str = f"{months} months"
 
-
+    return total_months, exp_str
 
 
 
