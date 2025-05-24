@@ -95,6 +95,7 @@ def parse_date(date_str):
 
 def extract_experience(text):
     # Normalize the text to reduce formatting issues
+    text = text.replace('\u00A0', ' ').replace('\n', ' ').replace('\r', ' ')
     text = re.sub(r'\s+', ' ', text).strip()
 
     # Regular expression for ranges like: February 3, 2025 - Present
