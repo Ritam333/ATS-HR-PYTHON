@@ -92,10 +92,9 @@ def extract_experience(text):
         except:
             continue
 
-    total_years = total_months // 12
-    return total_years
-
-
+    years = total_months // 12
+    months = total_months % 12
+    return years + months / 12, f"{years} year(s), {months} month(s)"
 
 
 
@@ -129,8 +128,10 @@ def calculate_ats_score(resume_text, jd_text, skills, exp, edu_keywords, locatio
 
     matched_skills = extract_skills(resume_text, skills)
     skill_score = len(matched_skills) / len(skills) if skills else 0
-    resume_exp = extract_experience(resume_text)
-    exp_score = min(resume_exp / exp, 1) if exp else 0
+
+    resume_exp_num, resume_exp_str = extract_experience(resume_text)
+    exp_score = min(resume_exp_num / exp, 1) if exp else 0
+
     edu_score = education_match(resume_text, edu_keywords)
     loc_score = check_location(resume_text, locations)
 
@@ -139,7 +140,8 @@ def calculate_ats_score(resume_text, jd_text, skills, exp, edu_keywords, locatio
     return round(final_score, 2), {
         "cosine_similarity": round(cosine_score, 2),
         "skills_matched": list(matched_skills),
-        "experience_years": resume_exp,
+        "experience_years": resume_exp_str,
+
         "education_matched": bool(edu_score),
         "location_matched": bool(loc_score)
     }
