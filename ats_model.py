@@ -5,6 +5,8 @@ import fitz
 import numpy as np
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
+from datetime import datetime
+
 
 model = SentenceTransformer('all-MiniLM-L6-v2')
 
@@ -65,9 +67,43 @@ def extract_skills(text, skill_list):
     text = text.lower()
     return {skill for skill in skill_list if skill.lower() in text}
 
+
+
+
+
+
 def extract_experience(text):
-    match = re.search(r'(\d+)\+?\s+years', text.lower())
-    return int(match.group(1)) if match else 0
+    text = text.lower()
+    total_months = 0
+
+    # Match date ranges like "jan 2020 to present" or "march 2019 - june 2021"
+    date_ranges = re.findall(r'([a-z]{3,9}\s+\d{4})\s*(?:to|-|–)\s*(present|[a-z]{3,9}\s+\d{4})', text)
+
+    for start_str, end_str in date_ranges:
+        try:
+            start_date = datetime.strptime(start_str, '%b %Y') if len(start_str.split()[0]) == 3 else datetime.strptime(start_str, '%B %Y')
+            if "present" in end_str:
+                end_date = datetime.today()
+            else:
+                end_date = datetime.strptime(end_str, '%b %Y') if len(end_str.split()[0]) == 3 else datetime.strptime(end_str, '%B %Y')
+
+            months = (end_date.year - start_date.year) * 12 + (end_date.month - start_date.month)
+            total_months += max(0, months)
+        except:
+            continue
+
+    total_years = total_months // 12
+    return total_years
+
+
+
+
+
+
+
+
+
+
 
 def education_match(resume_text, required_qualifications):
     resume_text = resume_text.lower()
