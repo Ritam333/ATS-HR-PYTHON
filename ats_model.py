@@ -73,7 +73,6 @@ def extract_skills(text, skill_list):
 
 
 
-
 def parse_date(date_str):
     date_str = date_str.strip().lower().replace(',', '')
     formats = [
@@ -84,9 +83,10 @@ def parse_date(date_str):
     for fmt in formats:
         try:
             return datetime.strptime(date_str, fmt)
-        except:
+        except ValueError:
             continue
     return None
+
 
 
 def extract_experience(text):
@@ -102,9 +102,7 @@ def extract_experience(text):
 
     matches = []
     for pattern in patterns:
-        matches = re.findall(pattern, text)
-        if matches:
-            break  # Stop at the first pattern that works
+        matches += re.findall(pattern, text)
 
     for start_str, end_str in matches:
         start_date = parse_date(start_str)
