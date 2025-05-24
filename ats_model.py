@@ -83,40 +83,38 @@ def parse_date_string(date_str):
             continue
     return None
 
-def extract_dates(text):
-    # Define multiple regex patterns for common date formats
-    date_patterns = [
-        # e.g. February 3, 2025
-        r'\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},?\s+\d{4}',
-        
-        # e.g. 2022 - 2024 or 2019–2022 or 2019 to 2022
-        r'\b\d{4}\s*[-–to]+\s*(\d{4}|Present|present)\b',
-        
-        # e.g. just the year: 2022
-        r'\b\d{4}\b',
-        
-        # e.g. Present
-        r'\b(Present|present)\b'
-    ]
-    
-    # Combine all patterns
-    combined_pattern = '|'.join(date_patterns)
-    
-    # Find all matches
-    matches = re.findall(combined_pattern, text)
-    
-    # Flatten and clean up matches
-    flat_matches = []
-    for match in matches:
-        if isinstance(match, tuple):
-            for m in match:
-                if m:
-                    flat_matches.append(m.strip())
-        elif match:
-            flat_matches.append(match.strip())
-    
-    # Deduplicate and return
-    return sorted(set(flat_matches))
+def extract_experience(text):
+    import dateutil.parser
+
+    # Normalize the text
+    text = text.lower().replace("–", "-").replace(" to ", "-")
+
+    # Extract date ranges
+    date_ranges = re.findall(r'(\b(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?|\d{4})[- ,]*\d{0,2}[- ,]*\d{4}|\d{4})\s*[-–to]+\s*(\b(?:present|\d{4}|\w+\s+\d{4}))', text)
+
+    total_months = 0
+    experience_ranges = []
+
+    for start_str, end_str in date_ranges:
+        try:
+            start_date = dateutil.parser.parse(start_str, default=datetime(1900, 1, 1))
+            if "present" in end_str.lower():
+                end_date = datetime.today()
+            else:
+                end_date = dateutil.parser.parse(end_str, default=datetime(1900, 1, 1))
+
+            months = (end_date.year - start_date.year) * 12 + (end_date.month - start_date.month)
+            total_months += max(months, 0)
+            experience_ranges.append(f"{start_date.strftime('%b %Y')} - {end_date.strftime('%b %Y') if 'present' not in end_str.lower() else 'Present'}")
+
+        except Exception:
+            continue
+
+    total_years = round(total_months / 12, 2)
+    experience_str = ', '.join(experience_ranges) if experience_ranges else "Not Found"
+    return total_years, experience_str
+
+
 
 
 
