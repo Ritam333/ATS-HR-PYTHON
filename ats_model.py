@@ -75,92 +75,64 @@ def extract_skills(text, skill_list):
 
 def parse_date(date_str):
     date_str = date_str.strip().lower().replace(',', '')
-    # Try multiple date formats
     formats = [
         "%B %d %Y",    # February 3 2025
         "%b %d %Y",    # Feb 3 2025
         "%B %Y",       # February 2025
         "%b %Y",       # Feb 2025
-        "%m/%Y",       # 02/2025
+        "%m/%Y",       # 06/2018
         "%Y-%m",       # 2025-02
-        "%m-%Y",       # 02-2025
         "%Y"           # 2025
     ]
     for fmt in formats:
         try:
-            if '%d' not in fmt:
-                # add day=1 for month/year or year-only formats
-                if fmt in ("%B %Y", "%b %Y"):
-                    return datetime.strptime("01 " + date_str, "%d " + fmt)
-                elif fmt in ("%m/%Y", "%Y-%m", "%m-%Y"):
-                    parts = re.split(r'[/-]', date_str)
-                    if len(parts) == 2:
-                        # Normalize format to YYYY-MM-DD or MM-YYYY-DD accordingly
-                        if len(parts[0]) == 4:
-                            return datetime.strptime(f"{parts[0]}-{parts[1]}-01", "%Y-%m-%d")
-                        else:
-                            return datetime.strptime(f"{parts[0]}-{parts[1]}-01", "%m-%Y-%d")
-                elif fmt == "%Y" and re.match(r'^\d{4}$', date_str):
-                    return datetime.strptime(f"{date_str}-01-01", "%Y-%m-%d")
-            else:
-                return datetime.strptime(date_str, fmt)
+            dt = datetime.strptime(date_str, fmt)
+            return datetime(dt.year, dt.month if dt.month else 1, dt.day if '%d' in fmt else 1)
         except:
-            continue
+            pass
     return None
 
 def extract_experience(text):
     text = text.lower()
     total_months = 0
-
-    patterns = [
-        # Month day, year - Month day, year or Present
-        r'([a-z]{3,9}\.? \d{1,2},? \d{4})\s*(?:-|–|to)\s*(present|[a-z]{3,9}\.? \d{1,2},? \d{4})',
-        # Month year - Month year or Present
-        r'([a-z]{3,9}\.? \d{4})\s*(?:-|–|to)\s*(present|[a-z]{3,9}\.? \d{4})',
-        # MM/YYYY - MM/YYYY or Present
-        r'(\d{1,2}/\d{4})\s*(?:-|–|to)\s*(present|\d{1,2}/\d{4})',
-        # YYYY-MM - YYYY-MM or Present
-        r'(\d{4}-\d{2})\s*(?:-|–|to)\s*(present|\d{4}-\d{2})',
-        # YYYY - YYYY or Present
-        r'(\d{4})\s*(?:-|–|to)\s*(present|\d{4})'
-    ]
-
-    matches = []
-    for pattern in patterns:
-        matches.extend(re.findall(pattern, text))
-
+    
+    # Updated pattern to accept day number as well
+    pattern = re.compile(
+        r'([a-z]{3,9} \d{1,2},? \d{4}|[a-z]{3,9} \d{4}|\d{1,2}/\d{4}|\d{4}-\d{2}|\d{4})\s*(?:-|to|–)\s*(present|[a-z]{3,9} \d{1,2},? \d{4}|[a-z]{3,9} \d{4}|\d{1,2}/\d{4}|\d{4}-\d{2}|\d{4})'
+    )
+    
+    matches = pattern.findall(text)
     if not matches:
         return 0, "0 year(s), 0 month(s)"
-
+    
     for start_str, end_str in matches:
         start_date = parse_date(start_str)
         if not start_date:
             continue
-
-        if "present" in end_str:
+        
+        if end_str == 'present':
             end_date = datetime.today()
         else:
             end_date = parse_date(end_str)
             if not end_date:
                 continue
-
+        
         if start_date > end_date:
-            # Skip invalid ranges where start is in future
             continue
-
+        
         months_diff = (end_date.year - start_date.year) * 12 + (end_date.month - start_date.month) + 1
         total_months += months_diff
-
+    
     years = total_months // 12
     months = total_months % 12
-
-    if total_months == 0 and any("present" in end_str for _, end_str in matches):
-        total_months = 1
-        years = 0
-        months = 1
-
     return years + months / 12, f"{years} year(s), {months} month(s)"
-# (Rest of your ats_model.py code remains the same)
+
+
+
+
+
+
+
 
 
 
