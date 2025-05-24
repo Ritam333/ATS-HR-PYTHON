@@ -72,34 +72,54 @@ def extract_skills(text, skill_list):
 
 
 
+from datetime import datetime
+import re
+
 def extract_experience(text):
     text = text.lower()
     total_months = 0
 
-    # Match date ranges like "jan 2020 to present" or "march 2019 - june 2021"
-    date_ranges = re.findall(r'([a-z]{3,9}\s+\d{4})\s*(?:to|-|–)\s*(present|[a-z]{3,9}\s+\d{4})', text)
+    # Regex to match date ranges with optional day, month (abbr/full), year, e.g. "February 3, 2025", "Feb 2025"
+    date_pattern = r'(\d{1,2}\s+[a-z]{3,9},?\s+\d{4}|[a-z]{3,9}\s+\d{1,2},?\s+\d{4}|[a-z]{3,9}\s+\d{4})\s*(?:to|-|–)\s*(present|\d{1,2}\s+[a-z]{3,9},?\s+\d{4}|[a-z]{3,9}\s+\d{1,2},?\s+\d{4}|[a-z]{3,9}\s+\d{4})'
+
+    date_ranges = re.findall(date_pattern, text)
 
     for start_str, end_str in date_ranges:
-        try:
-            start_date = datetime.strptime(start_str, '%b %Y') if len(start_str.split()[0]) == 3 else datetime.strptime(start_str, '%B %Y')
-            if "present" in end_str:
-                end_date = datetime.today()
-            else:
-                end_date = datetime.strptime(end_str, '%b %Y') if len(end_str.split()[0]) == 3 else datetime.strptime(end_str, '%B %Y')
-
-            months = (end_date.year - start_date.year) * 12 + (end_date.month - start_date.month)
-            total_months += max(0, months)
-        except:
+        start_date = parse_date(start_str)
+        if not start_date:
             continue
+
+        if "present" in end_str:
+            end_date = datetime.today()
+        else:
+            end_date = parse_date(end_str)
+            if not end_date:
+                continue
+
+        months = (end_date.year - start_date.year) * 12 + (end_date.month - start_date.month)
+        total_months += max(0, months)
 
     years = total_months // 12
     months = total_months % 12
     return years + months / 12, f"{years} year(s), {months} month(s)"
 
 
-
-
-
+def parse_date(date_str):
+    date_str = date_str.strip().replace(',', '')
+    formats = [
+        "%B %d %Y",   # February 3 2025
+        "%b %d %Y",   # Feb 3 2025
+        "%d %B %Y",   # 3 February 2025
+        "%d %b %Y",   # 3 Feb 2025
+        "%B %Y",      # February 2025
+        "%b %Y"       # Feb 2025
+    ]
+    for fmt in formats:
+        try:
+            return datetime.strptime(date_str, fmt)
+        except:
+            continue
+    return None
 
 
 
