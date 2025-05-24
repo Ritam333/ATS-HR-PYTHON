@@ -72,11 +72,7 @@ def extract_skills(text, skill_list):
 
 
 
-from datetime import datetime
-import re
 
-from datetime import datetime
-import re
 
 def parse_date(date_str):
     date_str = date_str.strip().replace(',', '')
