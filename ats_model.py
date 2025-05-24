@@ -94,32 +94,31 @@ def parse_date(date_str):
 
 
 def extract_experience(text):
-    import itertools
-
-    # Clean text
     text = text.replace('\u00A0', ' ').replace('\n', ' ').replace('\r', ' ')
     text = re.sub(r'\s+', ' ', text).strip()
 
-    # Use a simple date pattern to find all date-like strings
-    date_strings = re.findall(
-        r'(?:January|February|March|April|May|June|July|August|September|October|November|December|'
-        r'Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)'
-        r'(?:\s+\d{1,2})?,?\s+\d{4}|present',
+    # Patterns for date ranges (e.g. Jan 2020 - Present, Mar 2022 to Feb 2023)
+    date_range_pattern = re.findall(
+        r'((?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|'
+        r'Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+\d{4})\s*[-to]+\s*'
+        r'((?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|'
+        r'Sep(?:tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?\s+\d{4}|present))',
         text,
-        re.IGNORECASE
+        flags=re.IGNORECASE
     )
 
-    if not date_strings:
+    if not date_range_pattern:
         return 0, "Not Found"
 
-    # Try all consecutive date pairs
     total_months = 0
-    for start_str, end_str in zip(date_strings, date_strings[1:]):
+
+    for start_str, end_str in date_range_pattern:
         try:
-            start = date_parser.parse(start_str.replace(',', ''), fuzzy=True)
-            end = datetime.now() if "present" in end_str.lower() else date_parser.parse(end_str.replace(',', ''), fuzzy=True)
+            start = date_parser.parse(start_str, fuzzy=True)
+            end = datetime.now() if "present" in end_str.lower() else date_parser.parse(end_str, fuzzy=True)
             months = (end.year - start.year) * 12 + (end.month - start.month)
-            total_months += max(0, months)
+            if months > 0:
+                total_months += months
         except:
             continue
 
@@ -135,7 +134,6 @@ def extract_experience(text):
         return total_months, f"{years} years"
     else:
         return total_months, f"{months} months"
-
 
 
 
