@@ -96,16 +96,17 @@ def parse_date(date_str):
 def extract_experience(text):
     pattern = re.compile(
     r'('
-    r'((?:January|February|March|April|May|June|July|August|September|October|November|December|'
-    r'Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)?(?:\s+\d{1,2})?\s+\d{4}'
-    r'|Present|present)'
+    r'(January|February|March|April|May|June|July|August|September|October|November|December|'
+    r'Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)'
+    r'(?:\s+\d{1,2})?,?\s+\d{4}|Present|present'
     r')\s*[-–to]+\s*('
-    r'((?:January|February|March|April|May|June|July|August|September|October|November|December|'
-    r'Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)?(?:\s+\d{1,2})?\s+\d{4}'
-    r'|Present|present)'
+    r'(January|February|March|April|May|June|July|August|September|October|November|December|'
+    r'Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)'
+    r'(?:\s+\d{1,2})?,?\s+\d{4}|Present|present'
     r')',
     re.IGNORECASE
 )
+
 
     matches = pattern.findall(text)
     if not matches:
