@@ -74,49 +74,71 @@ def extract_skills(text, skill_list):
 
 
 
-def parse_date_string(date_str):
-    date_str = date_str.strip().lower().replace(",", "")
-    formats = ["%B %d %Y", "%B %Y", "%b %d %Y", "%b %Y", "%Y"]
-    for fmt in formats:
+def parse_date(date_str):
+    date_str = date_str.strip().replace(',', '')
+    date_formats = [
+        "%B %d %Y",  # February 3 2025
+        "%B %Y",     # February 2025
+        "%b %d %Y",  # Feb 3 2025
+        "%b %Y",     # Feb 2025
+        "%Y"         # 2025
+    ]
+    for fmt in date_formats:
         try:
             return datetime.strptime(date_str, fmt)
-        except ValueError:
+        except:
             continue
+    # If "Present" found, return current date
+    if date_str.lower() == "present":
+        return datetime.now()
     return None
 
 def extract_experience(text):
-    text = text.lower()
-    text = text.replace("–", "-").replace("—", "-").replace(" to ", " - ")
+    # Regex to find date ranges like "Feb 2019 - Present", "2018 to 2020", "February 2017 - Feb 2021"
+    pattern = re.compile(
+        r'('
+        r'(January|February|March|April|May|June|July|August|September|October|November|December|'
+        r'Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)?\s*\d{4}'
+        r'|Present|present'
+        r')\s*[-–to]+\s*'
+        r'('
+        r'(January|February|March|April|May|June|July|August|September|October|November|December|'
+        r'Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)?\s*\d{4}'
+        r'|Present|present'
+        r')',
+        re.IGNORECASE
+    )
 
-    date_patterns = [
-        r'((?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+\d{4})\s*-\s*(present|\d{4})',
-        r'(\d{4})\s*-\s*(present|\d{4})',
-        r'(\d{2}/\d{4})\s*-\s*(\d{2}/\d{4}|present)',
-    ]
-
-    matches = []
-    for pattern in date_patterns:
-        matches += re.findall(pattern, text)
+    matches = pattern.findall(text)
+    if not matches:
+        # Try to find single years only if no ranges found
+        single_years = re.findall(r'\b(19|20)\d{2}\b', text)
+        if single_years:
+            years = [int(y) for y in single_years]
+            exp_years = max(years) - min(years)
+            return exp_years, f"{exp_years} years"
+        else:
+            return 0, "Not Found"
 
     total_months = 0
-    readable_ranges = []
+    for match in matches:
+        start_str = match[0]
+        end_str = match[2]
 
-    for start_str, end_str in matches:
-        try:
-            start = dateutil.parser.parse(start_str)
-            end = datetime.today() if 'present' in end_str.lower() else dateutil.parser.parse(end_str)
-            months = (end.year - start.year) * 12 + (end.month - start.month)
-            if months > 0:
-                total_months += months
-                readable_ranges.append(f"{start.strftime('%b %Y')} - {end.strftime('%b %Y') if 'present' not in end_str.lower() else 'Present'}")
-        except:
-            continue
+        start_date = parse_date(start_str)
+        end_date = parse_date(end_str)
 
-    total_years = round(total_months / 12, 2)
-    return total_years, ', '.join(readable_ranges) if readable_ranges else "Not Found"
+        if start_date and end_date:
+            delta = (end_date.year - start_date.year) * 12 + (end_date.month - start_date.month)
+            if delta < 0:
+                delta = 0  # Ignore negative durations
+            total_months += delta
 
-
-
+    years_exp = round(total_months / 12, 2)
+    if years_exp == 0:
+        return 0, "Not Found"
+    else:
+        return years_exp, f"{years_exp} years"
 
 
 
