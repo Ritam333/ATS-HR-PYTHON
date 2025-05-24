@@ -121,6 +121,11 @@ def extract_experience(text):
     return years + months / 12, f"{years} year(s), {months} month(s)"
 
 
+text = """
+Software Engineer
+February 3, 2023 - Present
+"""
+print(extract_experience(text))
 
 
 
