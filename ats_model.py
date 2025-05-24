@@ -6,7 +6,7 @@ import numpy as np
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 from datetime import datetime
-import dateutil.parser  # required for flexible date parsing
+from dateutil import parser as date_parser
 
 
 model = SentenceTransformer('all-MiniLM-L6-v2')
@@ -94,10 +94,10 @@ def parse_date(date_str):
 
 
 def extract_experience(text):
-    # Pattern matches full date ranges like "February 3, 2025 - Present" or "Feb 2023 - Apr 2024"
-   # Normalize: join all lines into a single space-separated string
-    text = text.replace('\n', ' ').replace('\r', ' ')
+    # Normalize the text to reduce formatting issues
+    text = re.sub(r'\s+', ' ', text).strip()
 
+    # Regular expression for ranges like: February 3, 2025 - Present
     pattern = re.compile(
         r'((?:January|February|March|April|May|June|July|August|September|October|November|December|'
         r'Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)(?:\s+\d{1,2})?,?\s+\d{4}|Present|present)'
@@ -108,28 +108,24 @@ def extract_experience(text):
     )
 
     matches = pattern.findall(text)
-    if not matches:
-        # Fallback: try single years if no range is found
+
+    total_months = 0
+    for start_str, end_str in matches:
+        try:
+            start_date = date_parser.parse(start_str.replace(',', ''), fuzzy=True)
+            end_date = datetime.now() if 'present' in end_str.lower() else date_parser.parse(end_str.replace(',', ''), fuzzy=True)
+            delta = (end_date.year - start_date.year) * 12 + (end_date.month - start_date.month)
+            total_months += max(0, delta)
+        except Exception as e:
+            print(f"Date parse error: {start_str} to {end_str} => {e}")
+
+    if total_months == 0:
+        # fallback to single years if nothing was found
         single_years = re.findall(r'\b(19|20)\d{2}\b', text)
         if single_years:
             years = [int(y) for y in single_years]
             exp_months = (max(years) - min(years)) * 12
             return exp_months, f"{exp_months} months"
-        else:
-            return 0, "Not Found"
-
-    total_months = 0
-    for start_str, end_str in matches:
-        start_date = parse_date(start_str)
-        end_date = parse_date(end_str)
-
-        if start_date and end_date:
-            delta = (end_date.year - start_date.year) * 12 + (end_date.month - start_date.month)
-            if delta < 0:
-                delta = 0
-            total_months += delta
-
-    if total_months == 0:
         return 0, "Not Found"
 
     years = total_months // 12
@@ -143,9 +139,6 @@ def extract_experience(text):
         exp_str = f"{months} months"
 
     return total_months, exp_str
-
-
-
 
 
 
