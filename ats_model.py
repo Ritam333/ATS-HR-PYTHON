@@ -81,8 +81,12 @@ import re
 def parse_date(date_str):
     date_str = date_str.strip().replace(',', '')
     formats = [
-        "%B %d %Y", "%b %d %Y", "%B %Y", "%b %Y",
-        "%m/%Y", "%Y"
+        "%B %d %Y",  # February 3 2025
+        "%b %d %Y",  # Feb 3 2025
+        "%B %Y",     # February 2025
+        "%b %Y",     # Feb 2025
+        "%B %d %Y",  # March 3 2020
+        "%b %d %Y",  # Mar 3 2020
     ]
     for fmt in formats:
         try:
@@ -96,26 +100,28 @@ def extract_experience(text):
     text = text.lower()
     total_months = 0
 
-    date_patterns = [
-        r'([a-z]{3,9}\s+\d{1,2},?\s*\d{4})\s*[-–to]+\s*(present|[a-z]{3,9}\s+\d{1,2},?\s*\d{4})',
-        r'([a-z]{3,9}\s+\d{4})\s*[-–to]+\s*(present|[a-z]{3,9}\s+\d{4})',
-        r'(\d{1,2}/\d{4})\s*[-–to]+\s*(present|\d{1,2}/\d{4})',
-        r'(\d{4})\s*[-–to]+\s*(present|\d{4})',
-    ]
+    # Regex to capture date ranges (e.g., "February 3, 2025 - Present")
+    date_pattern = r'([a-z]{3,9}\s+\d{1,2},?\s*\d{4})\s*[-–to]+\s*(present|[a-z]{3,9}\s+\d{1,2},?\s*\d{4})'
+    matches = re.findall(date_pattern, text)
 
-    matches = []
-    for pattern in date_patterns:
-        matches.extend(re.findall(pattern, text))
+    if not matches:
+        # fallback: match month year only (e.g., "Feb 2025 - Present")
+        date_pattern_simple = r'([a-z]{3,9}\s+\d{4})\s*[-–to]+\s*(present|[a-z]{3,9}\s+\d{4})'
+        matches = re.findall(date_pattern_simple, text)
+
+    print("Matched date ranges:", matches)  # ✅ Add this line
 
     for start_str, end_str in matches:
         start_date = parse_date(start_str)
-        if not start_date:
-            continue
         end_date = datetime.today() if "present" in end_str else parse_date(end_str)
-        if not end_date:
+        print(f"Parsed: {start_str} -> {start_date}, {end_str} -> {end_date}")  # ✅ Add this line
+
+        if not start_date or not end_date:
             continue
+
         months = (end_date.year - start_date.year) * 12 + (end_date.month - start_date.month)
-        if months < 0: continue
+        if months < 0:
+            continue
         total_months += months
 
     years = total_months // 12
