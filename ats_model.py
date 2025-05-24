@@ -78,43 +78,6 @@ import re
 from datetime import datetime
 import re
 
-def extract_experience(text):
-    text = text.lower()
-    total_months = 0
-
-    # Regex to capture date ranges (start to end or present),
-    # allowing formats like "February 3, 2025 - Present"
-    date_pattern = r'([a-z]{3,9}\s+\d{1,2},?\s*\d{4})\s*[-–to]+\s*(present|[a-z]{3,9}\s+\d{1,2},?\s*\d{4})'
-
-    matches = re.findall(date_pattern, text)
-
-    if not matches:
-        # fallback: try matching month year only, e.g. Feb 2025 - Present
-        date_pattern_simple = r'([a-z]{3,9}\s+\d{4})\s*[-–to]+\s*(present|[a-z]{3,9}\s+\d{4})'
-        matches = re.findall(date_pattern_simple, text)
-
-    for start_str, end_str in matches:
-        start_date = parse_date(start_str)
-        if not start_date:
-            continue
-
-        if "present" in end_str:
-            end_date = datetime.today()
-        else:
-            end_date = parse_date(end_str)
-            if not end_date:
-                continue
-
-        months = (end_date.year - start_date.year) * 12 + (end_date.month - start_date.month)
-        if months < 0:
-            continue
-        total_months += months
-
-    years = total_months // 12
-    months = total_months % 12
-    return years + months / 12, f"{years} year(s), {months} month(s)"
-
-
 def parse_date(date_str):
     date_str = date_str.strip().replace(',', '')
     formats = [
@@ -127,8 +90,44 @@ def parse_date(date_str):
         try:
             return datetime.strptime(date_str, fmt)
         except:
-            pass
+            continue
     return None
+
+def extract_experience(text):
+    text = text.lower()
+    total_months = 0
+
+    # Regex to capture date ranges (e.g., "February 3, 2025 - Present")
+    date_pattern = r'([a-z]{3,9}\s+\d{1,2},?\s*\d{4})\s*[-–to]+\s*(present|[a-z]{3,9}\s+\d{1,2},?\s*\d{4})'
+    matches = re.findall(date_pattern, text)
+
+    if not matches:
+        # fallback: match month year only (e.g., "Feb 2025 - Present")
+        date_pattern_simple = r'([a-z]{3,9}\s+\d{4})\s*[-–to]+\s*(present|[a-z]{3,9}\s+\d{4})'
+        matches = re.findall(date_pattern_simple, text)
+
+    for start_str, end_str in matches:
+        start_date = parse_date(start_str)
+        if not start_date:
+            continue
+        if "present" in end_str:
+            end_date = datetime.today()
+        else:
+            end_date = parse_date(end_str)
+            if not end_date:
+                continue
+        months = (end_date.year - start_date.year) * 12 + (end_date.month - start_date.month)
+        if months < 0:
+            continue
+        total_months += months
+
+    years = total_months // 12
+    months = total_months % 12
+    return years + months / 12, f"{years} year(s), {months} month(s)"
+
+
+
+
 
 
 
