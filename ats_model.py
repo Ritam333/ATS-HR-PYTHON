@@ -88,19 +88,20 @@ def extract_experience(text):
     total_months = 0
     current_date = datetime.today()
 
-    # Match "february 3, 2025 - present" or similar patterns
+    # Improved regex: supports "february 3 2025 - present"
     pattern = re.compile(
-        r'([a-z]+(?: \d{1,2})?,? \d{4})\s*[-–to]+\s*(present|[a-z]+(?: \d{1,2})?,? \d{4})',
+        r'([a-z]+(?: \d{1,2})? ?\d{4})\s*[-–to]+\s*(present|[a-z]+(?: \d{1,2})? ?\d{4})',
         flags=re.IGNORECASE
     )
 
     matches = pattern.findall(text)
     if not matches:
+        print("❌ No matches found.")
         return 0, "0 year(s), 0 month(s)"
 
     for start_str, end_str in matches:
         start_date = parse_date_string(start_str)
-        end_date = current_date if end_str == "present" else parse_date_string(end_str)
+        end_date = current_date if 'present' in end_str else parse_date_string(end_str)
 
         if not start_date or not end_date:
             continue
@@ -113,8 +114,7 @@ def extract_experience(text):
 
     years = total_months // 12
     months = total_months % 12
-    return round(years + months / 12, 2), f"{years} year(s), {months} month(s)"
-
+    return round(years + months / 12, 2), f"{years} year(s), {months} month(s)"c
 
 
 
