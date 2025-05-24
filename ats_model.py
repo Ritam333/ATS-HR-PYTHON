@@ -95,6 +95,9 @@ def parse_date(date_str):
 
 def extract_experience(text):
     # Pattern matches full date ranges like "February 3, 2025 - Present" or "Feb 2023 - Apr 2024"
+   # Normalize: join all lines into a single space-separated string
+    text = text.replace('\n', ' ').replace('\r', ' ')
+
     pattern = re.compile(
         r'((?:January|February|March|April|May|June|July|August|September|October|November|December|'
         r'Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)(?:\s+\d{1,2})?,?\s+\d{4}|Present|present)'
