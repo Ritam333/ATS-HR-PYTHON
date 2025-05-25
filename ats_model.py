@@ -94,33 +94,47 @@ def parse_date(date_str):
 
 
 def extract_experience(text):
-    import itertools
+    import dateutil.parser
+    from datetime import datetime
+    import re
 
-    # Clean text
+    # Normalize text
     text = text.replace('\u00A0', ' ').replace('\n', ' ').replace('\r', ' ')
     text = re.sub(r'\s+', ' ', text).strip()
 
-    # Use a simple date pattern to find all date-like strings
-    date_strings = re.findall(
-        r'(?:January|February|March|April|May|June|July|August|September|October|November|December|'
-        r'Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)'
-        r'(?:\s+\d{1,2})?,?\s+\d{4}|present',
+    # Extended date regex patterns
+    date_patterns = re.findall(
+        r'(?:(?:\d{1,2}[/-])?\d{1,2}[/-]\d{2,4}|'                # 12/03/2002 or 25/5/2023
+        r'(?:January|February|March|April|May|June|July|August|September|October|November|December|'  # March 2024
+        r'Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*[\s\-]?\d{4}|'  # Mar 2024, March-2024
+        r'\d{4})|'  # 2022
+        r'(?:present|current)',  # present or current
         text,
-        re.IGNORECASE
+        flags=re.IGNORECASE
     )
 
-    if not date_strings:
+    # Remove duplicates and clean up
+    date_patterns = list(dict.fromkeys([d.strip().replace(',', '') for d in date_patterns]))
+
+    if not date_patterns or len(date_patterns) < 2:
         return 0, "Not Found"
 
-    # Try all consecutive date pairs
+    # Match pairs and calculate total months
     total_months = 0
-    for start_str, end_str in zip(date_strings, date_strings[1:]):
+    for i in range(len(date_patterns) - 1):
+        start_str = date_patterns[i]
+        end_str = date_patterns[i + 1]
+
         try:
-            start = date_parser.parse(start_str.replace(',', ''), fuzzy=True)
-            end = datetime.now() if "present" in end_str.lower() else date_parser.parse(end_str.replace(',', ''), fuzzy=True)
-            months = (end.year - start.year) * 12 + (end.month - start.month)
+            start_date = datetime.now() if "present" in start_str.lower() or "current" in start_str.lower() else dateutil.parser.parse(start_str, fuzzy=True)
+            end_date = datetime.now() if "present" in end_str.lower() or "current" in end_str.lower() else dateutil.parser.parse(end_str, fuzzy=True)
+
+            if start_date > end_date:
+                start_date, end_date = end_date, start_date
+
+            months = (end_date.year - start_date.year) * 12 + (end_date.month - start_date.month)
             total_months += max(0, months)
-        except:
+        except Exception:
             continue
 
     if total_months == 0:
