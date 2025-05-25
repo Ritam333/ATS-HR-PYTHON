@@ -98,49 +98,53 @@ def extract_experience(text):
     from datetime import datetime
     from dateutil import parser
 
-    text = text.replace('\n', ' ').replace('\r', ' ')
-    text = re.sub(r'\s+', ' ', text).strip()
+    text = re.sub(r'\s+', ' ', text.replace('\n', ' ').replace('\r', ' '))
+    date_phrases = []
 
-    # Add spacing around dashes to help regex
-    text = re.sub(r'(\d)(-)(\d)', r'\1 - \3', text)
-    text = re.sub(r'([a-zA-Z])-(\d)', r'\1 - \2', text)
-    text = re.sub(r'(\d)-([a-zA-Z])', r'\1 - \2', text)
+    # Match common date formats + 'present'/'current'
+    date_pattern = r'(?:(?:\d{1,2}[/-])?\d{1,2}[/-]\d{2,4}|' \
+                   r'(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*[ -]?\d{4}|' \
+                   r'(?:\d{4}[ -]?(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*)|' \
+                   r'\d{4}|' \
+                   r'present|current)'
 
-    # Match potential date ranges
-    date_ranges = re.findall(
-        r'((?:\d{1,2}[/-])?\d{1,2}[/-]\d{2,4}|\d{4}[ ]?(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)?|(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*[ ]?\d{4}|present|current)'
-        r'\s*[-to–]+\s*'
-        r'((?:\d{1,2}[/-])?\d{1,2}[/-]\d{2,4}|\d{4}[ ]?(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)?|(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*[ ]?\d{4}|present|current)',
-        text,
-        flags=re.IGNORECASE
-    )
+    # Extract all date-like tokens
+    matches = re.findall(date_pattern, text, re.IGNORECASE)
+    matches = [m.strip().replace(',', '') for m in matches if m.strip()]
+    
+    if len(matches) < 2:
+        return 0, "Not Found"
 
     total_months = 0
-    for start_str, end_str in date_ranges:
+    for i in range(len(matches) - 1):
+        start_str = matches[i]
+        end_str = matches[i + 1]
         try:
             start = datetime.now() if "present" in start_str.lower() or "current" in start_str.lower() else parser.parse(start_str, fuzzy=True)
             end = datetime.now() if "present" in end_str.lower() or "current" in end_str.lower() else parser.parse(end_str, fuzzy=True)
 
+            # Ignore if duration is negative
             if start > end:
-                start, end = end, start
+                continue
 
-            diff_months = (end.year - start.year) * 12 + (end.month - start.month)
-            total_months += max(0, diff_months)
+            months = (end.year - start.year) * 12 + (end.month - start.month)
+            if months > 0:
+                total_months += months
         except:
             continue
 
     if total_months == 0:
         return 0, "Not Found"
-
+    
     years = total_months // 12
     months = total_months % 12
-
     if years and months:
         return total_months, f"{years} years and {months} months"
     elif years:
         return total_months, f"{years} years"
     else:
         return total_months, f"{months} months"
+
 
 
 
