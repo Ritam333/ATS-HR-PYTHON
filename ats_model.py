@@ -124,8 +124,9 @@ def extract_experience(text):
             end = datetime.now() if "present" in end_str.lower() or "current" in end_str.lower() else parser.parse(end_str, fuzzy=True)
 
             # Ignore if duration is negative
-            if start > end:
-              start, end = end, start 
+            if start > end or (start.year < 1900 or end.year < 1900 or end.year > datetime.now().year + 1):
+              continue  # skip absurd or inverted dates
+
 
             months = (end.year - start.year) * 12 + (end.month - start.month)
             if months > 0:
