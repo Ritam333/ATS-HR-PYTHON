@@ -56,59 +56,56 @@ def extract_skills(text: str, skill_list: list) -> set:
 
 
 
-def calculate_duration(start, end):
-    """Return duration between two dates as years, months, and days."""
-    delta_years = end.year - start.year
-    delta_months = end.month - start.month
-    delta_days = end.day - start.day
-
-    if delta_days < 0:
-        delta_months -= 1
-        delta_days += (start.replace(month=start.month % 12 + 1, day=1) - start.replace(day=1)).days
-
-    if delta_months < 0:
-        delta_years -= 1
-        delta_months += 12
-
-    return delta_years, delta_months, delta_days
-
 def extract_experience(text):
-    # Patterns to match common date ranges
     patterns = [
+        # Feb 2024 – May 2025
         r'(?P<start>[A-Za-z]+\s\d{4})\s*(?:–|-|to)\s*(?P<end>[A-Za-z]+\s\d{4}|Present)',
-        r'(?P<start>\d{1,2}/\d{1,2}/\d{4})\s*(?:–|-|to)\s*(?P<end>\d{1,2}/\d{1,2}/\d{4}|Present)',
-        r'(?P<start>[A-Za-z]+\s\d{1,2},\s*\d{4})\s*(?:–|-|to)\s*(?P<end>[A-Za-z]+\s\d{1,2},\s*\d{4}|Present)'
+        # March 3, 2022 – Present
+        r'(?P<start>[A-Za-z]+\s\d{1,2},?\s*\d{4})\s*(?:–|-|to)\s*(?P<end>[A-Za-z]+\s\d{1,2},?\s*\d{4}|Present)',
+        # 03/2021 – 05/2023
+        r'(?P<start>\d{1,2}/\d{4})\s*(?:–|-|to)\s*(?P<end>\d{1,2}/\d{4}|Present)',
+        # 03/03/2022 – 12/12/2023
+        r'(?P<start>\d{1,2}/\d{1,2}/\d{4})\s*(?:–|-|to)\s*(?P<end>\d{1,2}/\d{1,2}/\d{4}|Present)'
     ]
-    
-    total_experience_days = 0
+
+    today = datetime.today()
+    total_experience = datetime(1, 1, 1)  # Dummy date for timedelta addition
     experience_durations = []
 
     for pattern in patterns:
-        for match in re.finditer(pattern, text):
+        matches = re.finditer(pattern, text, re.IGNORECASE)
+        for match in matches:
             start_str = match.group('start')
             end_str = match.group('end')
 
             try:
                 start_date = parser.parse(start_str)
-            except:
-                continue
+                end_date = today if re.search(r'present', end_str, re.IGNORECASE) else parser.parse(end_str)
 
-            if end_str.lower() == 'present':
-                end_date = datetime.today()
-            else:
-                try:
-                    end_date = parser.parse(end_str)
-                except:
-                    continue
+                diff = end_date - start_date
+                days = diff.days
+                years, remainder = divmod(days, 365)
+                months, days = divmod(remainder, 30)
 
-            y, m, d = calculate_duration(start_date, end_date)
-            experience_durations.append((y, m, d))
-            total_experience_days += (end_date - start_date).days
+                experience_durations.append((years, months, days))
 
-    # Calculate total years of experience as float
-    total_years_exp = round(total_experience_days / 365, 2)
+                total_experience = total_experience.replace(
+                    year=total_experience.year + years,
+                    month=total_experience.month + months if total_experience.month + months <= 12 else (total_experience.month + months - 12),
+                    day=total_experience.day
+                )
 
+                print(f"✔ Matched: {start_str} – {end_str} → {years}y {months}m {days}d")
+            except Exception as e:
+                print(f"❌ Error parsing dates: {start_str} – {end_str} | Error: {e}")
+
+    # Total experience in years (approx)
+    total_years_exp = sum([y + m / 12 + d / 365 for y, m, d in experience_durations])
+    total_years_exp = round(total_years_exp, 2)
+
+    print(f"\n🧠 Total Experience: {total_years_exp} years")
     return total_years_exp, experience_durations
+
 
 
 
