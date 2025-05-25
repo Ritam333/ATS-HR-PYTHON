@@ -6,11 +6,9 @@ from datetime import datetime
 from dateutil import parser as date_parser
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
-from transformers import pipeline
 
-# Initialize models
+# Initialize model
 model = SentenceTransformer('all-MiniLM-L6-v2')
-ner_pipeline = pipeline("ner", model="dslim/bert-base-NER", grouped_entities=True)
 
 # Qualification mapping
 QUALIFICATION_MAP = {
@@ -55,54 +53,44 @@ def extract_skills(text: str, skill_list: list) -> set:
     return {s for s in skill_list if s.lower() in t}
 
 
-def extract_experience_hf(text: str) -> tuple:
+def extract_experience(text: str) -> tuple:
     """
-    Use HF NER + regex to extract dates and compute total experience.
-    Returns (months, human_readable).
+    Extract experience from text using regex date range patterns.
+    Returns total months and human-readable string.
     """
     now = datetime.now()
-    # regex date token
-    date_token = r'(?:\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*[ -]?\d{4}|\d{4}|present|current)'
-    # explicit ranges
-    range_re = re.compile(rf'({date_token})\s*(?:-|–|to)\s*({date_token})', flags=re.IGNORECASE)
+    min_year, max_year = 1950, now.year + 1
+    seen_ranges = set()
     total_months = 0
-    # 1) ranges
+
+    date_token = r'(?:\d{1,2}[/-]\d{1,2}[/-]\d{2,4}' \
+                  r'|(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*[ -]?\d{4}' \
+                  r'|\d{4}' \
+                  r'|present|current)'
+
+    range_re = re.compile(rf'({date_token})\s*(?:-|–|to)\s*({date_token})', flags=re.IGNORECASE)
+
     for start_str, end_str in range_re.findall(text):
         try:
-            s = now if start_str.lower() in ('present','current') else date_parser.parse(start_str, fuzzy=True)
-            e = now if end_str.lower() in ('present','current') else date_parser.parse(end_str, fuzzy=True)
+            s = now if start_str.lower() in ('present', 'current') else date_parser.parse(start_str, fuzzy=True)
+            e = now if end_str.lower() in ('present', 'current') else date_parser.parse(end_str, fuzzy=True)
+            if s.year < min_year or e.year < min_year or s.year > max_year or e.year > max_year:
+                continue
             if s > e:
                 s, e = e, s
-            months = (e.year - s.year)*12 + (e.month - s.month)
-            if months > 0:
+            key = (s.strftime('%Y-%m'), e.strftime('%Y-%m'))
+            if key in seen_ranges:
+                continue
+            seen_ranges.add(key)
+            months = (e.year - s.year) * 12 + (e.month - s.month)
+            if 0 < months < 120:  # cap individual blocks to 10 years max
                 total_months += months
         except:
             continue
-    # 2) fallback tokens
-    if total_months == 0:
-        entities = ner_pipeline(text)
-        hf_dates = [ent['word'].replace(',', '') for ent in entities if ent['entity_group']=='DATE']
-        regex_dates = [d for d in re.findall(date_token, text, flags=re.IGNORECASE)]
-        tokens = []
-        seen = set()
-        for d in hf_dates + regex_dates:
-            key = d.lower()
-            if key not in seen:
-                seen.add(key)
-                tokens.append(d)
-        for i in range(len(tokens)-1):
-            try:
-                s = now if tokens[i].lower() in ('present','current') else date_parser.parse(tokens[i], fuzzy=True)
-                e = now if tokens[i+1].lower() in ('present','current') else date_parser.parse(tokens[i+1], fuzzy=True)
-                if s > e:
-                    s, e = e, s
-                months = (e.year - s.year)*12 + (e.month - s.month)
-                if months > 0:
-                    total_months += months
-            except:
-                continue
+
     if total_months == 0:
         return 0, "Not Found"
+
     years, months = divmod(total_months, 12)
     if years and months:
         return total_months, f"{years} years and {months} months"
@@ -130,7 +118,7 @@ def calculate_ats_score(resume_text: str, jd_text: str, skills: list, exp: int, 
     matched_skills = extract_skills(resume_text, skills)
     skill_score = len(matched_skills)/len(skills) if skills else 0
     # experience
-    resume_exp_num, resume_exp_str = extract_experience_hf(resume_text)
+    resume_exp_num, resume_exp_str = extract_experience(resume_text)
     exp_score = min(resume_exp_num/exp, 1) if exp else 0
     # education & location
     edu_score = education_match(resume_text, edu_keywords)
