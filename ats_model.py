@@ -12,7 +12,7 @@ from transformers import pipeline
 model = SentenceTransformer('all-MiniLM-L6-v2')
 ner_pipeline = pipeline("ner", model="dslim/bert-base-NER", grouped_entities=True)
 
-# Qualification abbreviation to full-form mapping
+# Qualification abbreviation mapping
 QUALIFICATION_MAP = {
     "mca": ["master of computer application", "master in computer application", "m.c.a"],
     "btech": ["bachelor of technology", "b.tech", "bachelor in technology"],
@@ -24,21 +24,16 @@ QUALIFICATION_MAP = {
     "be": ["bachelor of engineering", "b.e"]
 }
 
-
 def clean_text(text: str) -> str:
     text = text.lower()
     text = re.sub(r'[^a-zA-Z0-9\s]', '', text)
-    text = re.sub(r'\s+', ' ', text).strip()
-    return text
-
+    return re.sub(r'\s+', ' ', text).strip()
 
 def normalize_qualification(text):
     t = text.lower()
     for abbr, forms in QUALIFICATION_MAP.items():
-        if any(f in t for f in forms):
-            return abbr
+        if any(f in t for f in forms): return abbr
     return None
-
 
 def extract_text_from_pdf_url(url: str) -> str:
     """Extract text from PDF via fitz"""
@@ -49,43 +44,59 @@ def extract_text_from_pdf_url(url: str) -> str:
     except:
         return ""
 
-
 def extract_skills(text, skill_list):
     t = text.lower()
     return {s for s in skill_list if s.lower() in t}
 
+# Regex date pattern for fallback
+_REGEX_DATE = (r'(?:\d{1,2}[/-]\d{1,2}[/-]\d{2,4}'
+               r'|(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*[ -]?\d{4}'
+               r'|\d{4}'
+               r'|present|current)')
 
 def extract_experience_hf(text):
     """
     Use Hugging Face NER to extract DATE entities and compute total experience.
+    Falls back to regex extraction if needed.
     """
+    # 1) HF NER extraction
     entities = ner_pipeline(text)
-    dates = [e['word'].replace(',', '').strip() for e in entities if e['entity_group'] == 'DATE']
-    # dedupe
+    hf_dates = [e['word'].replace(',', '').strip() for e in entities if e['entity_group'] == 'DATE']
+
+    # 2) Regex fallback extraction
+    regex_dates = re.findall(_REGEX_DATE, text, flags=re.IGNORECASE)
+    regex_dates = [d.strip().replace(',', '') for d in regex_dates]
+
+    # 3) Merge while preserving order
     seen = set()
     tokens = []
-    for d in dates:
-        kl = d.lower()
-        if kl not in seen:
-            seen.add(kl)
+    for d in hf_dates + regex_dates:
+        key = d.lower()
+        if key not in seen:
+            seen.add(key)
             tokens.append(d)
+
     if len(tokens) < 2:
         return 0, "Not Found"
+
+    # 4) Compute months between sequential tokens
     total_months = 0
     now = datetime.now()
-    for i in range(len(tokens)-1):
+    for i in range(len(tokens) - 1):
         try:
-            start = now if tokens[i].lower() in ('present','current') else date_parser.parse(tokens[i], fuzzy=True)
-            end = now if tokens[i+1].lower() in ('present','current') else date_parser.parse(tokens[i+1], fuzzy=True)
-            if start > end:
-                start, end = end, start
-            months = (end.year - start.year) * 12 + (end.month - start.month)
+            s = now if tokens[i].lower() in ('present', 'current') else date_parser.parse(tokens[i], fuzzy=True)
+            e = now if tokens[i+1].lower() in ('present', 'current') else date_parser.parse(tokens[i+1], fuzzy=True)
+            if s > e:
+                s, e = e, s
+            months = (e.year - s.year) * 12 + (e.month - s.month)
             if months > 0:
                 total_months += months
         except:
             continue
+
     if total_months == 0:
         return 0, "Not Found"
+
     years, months = divmod(total_months, 12)
     if years and months:
         return total_months, f"{years} years and {months} months"
@@ -96,7 +107,6 @@ def extract_experience_hf(text):
 
 
 def education_match(resume_text, required_qualifications):
-    resume_text = resume_text.lower()
     quals = {normalize_qualification(l) for l in resume_text.splitlines() if normalize_qualification(l)}
     return bool(quals.intersection({q.lower() for q in required_qualifications}))
 
@@ -116,14 +126,18 @@ def calculate_ats_score(resume_text, jd_text, skills, exp, edu_keywords, locatio
     matched_skills = extract_skills(resume_text, skills)
     skill_score = len(matched_skills) / len(skills) if skills else 0
 
-    # experience via HF
+    # experience via HF + regex
     resume_exp_num, resume_exp_str = extract_experience_hf(resume_text)
     exp_score = min(resume_exp_num / exp, 1) if exp else 0
 
     edu_score = education_match(resume_text, edu_keywords)
     loc_score = check_location(resume_text, locations)
 
-    final_score = (cosine_score * 0.5 + skill_score * 0.2 + exp_score * 0.1 + edu_score * 0.1 + loc_score * 0.1) * 100
+    final_score = (cosine_score * 0.5
+                   + skill_score * 0.2
+                   + exp_score * 0.1
+                   + edu_score * 0.1
+                   + loc_score * 0.1) * 100
 
     return round(final_score, 2), {
         "cosine_similarity": round(cosine_score, 2),
