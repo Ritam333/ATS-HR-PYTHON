@@ -56,73 +56,61 @@ def extract_skills(text: str, skill_list: list) -> set:
 
 
 
-def extract_experience(text: str) -> tuple:
-    """
-    Robust experience extractor:
-    - Supports a wide range of date formats.
-    - Falls back to job title detection if no dates found.
-    """
-    now = datetime.now()
-    min_year, max_year = 1950, now.year + 1
-    seen_ranges = set()
-    total_months = 0
+def calculate_duration(start, end):
+    """Return duration between two dates as years, months, and days."""
+    delta_years = end.year - start.year
+    delta_months = end.month - start.month
+    delta_days = end.day - start.day
 
-    # Expanded date token regex
-    month_names = r'(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|' \
-                  r'May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|' \
-                  r'Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)'
+    if delta_days < 0:
+        delta_months -= 1
+        delta_days += (start.replace(month=start.month % 12 + 1, day=1) - start.replace(day=1)).days
 
-    date_token = (
-        rf'(\d{{1,2}}[/-]\d{{1,2}}[/-]\d{{2,4}}|'  # dd-mm-yyyy
-        rf'\d{{4}}[/-]\d{{1,2}}[/-]?\d*|'           # yyyy-mm or yyyy-mm-dd
-        rf'{month_names}[ \t.,-]*\d{{2,4}}|'        # Month Year
-        rf'\d{{4}}|'                                # year
-        rf'present|current)'
-    )
+    if delta_months < 0:
+        delta_years -= 1
+        delta_months += 12
 
-    range_re = re.compile(rf'({date_token})\s*(?:-|–|—|to|until)?\s*({date_token})',
-                          flags=re.IGNORECASE | re.MULTILINE)
+    return delta_years, delta_months, delta_days
 
-    for match in range_re.findall(text):
-        start_str, end_str = match[0], match[-1]
-        try:
-            start = now if start_str.strip().lower() in ("present", "current") else date_parser.parse(start_str, fuzzy=True)
-            end = now if end_str.strip().lower() in ("present", "current") else date_parser.parse(end_str, fuzzy=True)
-            if start.year < min_year or end.year < min_year or start.year > max_year or end.year > max_year:
+def extract_experience(text):
+    # Patterns to match common date ranges
+    patterns = [
+        r'(?P<start>[A-Za-z]+\s\d{4})\s*(?:–|-|to)\s*(?P<end>[A-Za-z]+\s\d{4}|Present)',
+        r'(?P<start>\d{1,2}/\d{1,2}/\d{4})\s*(?:–|-|to)\s*(?P<end>\d{1,2}/\d{1,2}/\d{4}|Present)',
+        r'(?P<start>[A-Za-z]+\s\d{1,2},\s*\d{4})\s*(?:–|-|to)\s*(?P<end>[A-Za-z]+\s\d{1,2},\s*\d{4}|Present)'
+    ]
+    
+    total_experience_days = 0
+    experience_durations = []
+
+    for pattern in patterns:
+        for match in re.finditer(pattern, text):
+            start_str = match.group('start')
+            end_str = match.group('end')
+
+            try:
+                start_date = parser.parse(start_str)
+            except:
                 continue
-            if start > end:
-                start, end = end, start
-            key = (start.strftime('%Y-%m'), end.strftime('%Y-%m'))
-            if key in seen_ranges:
-                continue
-            seen_ranges.add(key)
-            months = (end.year - start.year) * 12 + (end.month - start.month)
-            if 0 < months < 120:  # ignore unreasonable gaps
-                total_months += months
-        except Exception:
-            continue
 
-    # Fallback to estimating by job titles
-    if total_months == 0:
-        job_titles = [
-            "software engineer", "developer", "data analyst", "project manager", "consultant",
-            "intern", "research assistant", "data scientist", "business analyst", "team lead"
-        ]
-        found_jobs = set()
-        for jt in job_titles:
-            if re.search(rf'\b{jt}\b', text, flags=re.IGNORECASE):
-                found_jobs.add(jt)
-        total_months = len(found_jobs) * 12  # estimate 1 year per unique role
+            if end_str.lower() == 'present':
+                end_date = datetime.today()
+            else:
+                try:
+                    end_date = parser.parse(end_str)
+                except:
+                    continue
 
-    if total_months == 0:
-        return 0, "Not Found"
+            y, m, d = calculate_duration(start_date, end_date)
+            experience_durations.append((y, m, d))
+            total_experience_days += (end_date - start_date).days
 
-    years, months = divmod(total_months, 12)
-    if years and months:
-        return total_months, f"{years} years and {months} months"
-    elif years:
-        return total_months, f"{years} years"
-    return total_months, f"{months} months"
+    # Calculate total years of experience as float
+    total_years_exp = round(total_experience_days / 365, 2)
+
+    return total_years_exp, experience_durations
+
+
 
 
 
