@@ -125,7 +125,7 @@ def extract_experience(text):
 
             # Ignore if duration is negative
             if start > end:
-                continue
+              start, end = end, start 
 
             months = (end.year - start.year) * 12 + (end.month - start.month)
             if months > 0:
