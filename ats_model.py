@@ -58,44 +58,51 @@ def extract_skills(text: str, skill_list: list) -> set:
 
 def extract_experience(text: str) -> tuple:
     """
-    Enhanced experience extractor:
-    1. Try to extract experience from date ranges.
-    2. If not found, fallback to job titles and estimate duration.
-    Returns: (total_months, readable_string)
+    Robust experience extractor:
+    - Supports a wide range of date formats.
+    - Falls back to job title detection if no dates found.
     """
     now = datetime.now()
     min_year, max_year = 1950, now.year + 1
     seen_ranges = set()
     total_months = 0
 
-    # Extended date formats
-    date_token = r'(?:\d{1,2}[/-]\d{1,2}[/-]\d{2,4}' \
-                 r'|\d{4}' \
-                 r'|(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*[ .,/-]?\d{2,4}' \
-                 r'|present|current)'
+    # Expanded date token regex
+    month_names = r'(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|' \
+                  r'May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:tember)?|' \
+                  r'Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)'
 
-    range_re = re.compile(rf'({date_token})\s*(?:-|–|to|until)\s*({date_token})',
+    date_token = (
+        rf'(\d{{1,2}}[/-]\d{{1,2}}[/-]\d{{2,4}}|'  # dd-mm-yyyy
+        rf'\d{{4}}[/-]\d{{1,2}}[/-]?\d*|'           # yyyy-mm or yyyy-mm-dd
+        rf'{month_names}[ \t.,-]*\d{{2,4}}|'        # Month Year
+        rf'\d{{4}}|'                                # year
+        rf'present|current)'
+    )
+
+    range_re = re.compile(rf'({date_token})\s*(?:-|–|—|to|until)?\s*({date_token})',
                           flags=re.IGNORECASE | re.MULTILINE)
 
-    for start_str, end_str in range_re.findall(text):
+    for match in range_re.findall(text):
+        start_str, end_str = match[0], match[-1]
         try:
-            s = now if start_str.lower() in ('present', 'current') else date_parser.parse(start_str, fuzzy=True)
-            e = now if end_str.lower() in ('present', 'current') else date_parser.parse(end_str, fuzzy=True)
-            if s.year < min_year or e.year < min_year or s.year > max_year or e.year > max_year:
+            start = now if start_str.strip().lower() in ("present", "current") else date_parser.parse(start_str, fuzzy=True)
+            end = now if end_str.strip().lower() in ("present", "current") else date_parser.parse(end_str, fuzzy=True)
+            if start.year < min_year or end.year < min_year or start.year > max_year or end.year > max_year:
                 continue
-            if s > e:
-                s, e = e, s
-            key = (s.strftime('%Y-%m'), e.strftime('%Y-%m'))
+            if start > end:
+                start, end = end, start
+            key = (start.strftime('%Y-%m'), end.strftime('%Y-%m'))
             if key in seen_ranges:
                 continue
             seen_ranges.add(key)
-            months = (e.year - s.year) * 12 + (e.month - s.month)
-            if 0 < months < 120:  # cap each block to 10 years
+            months = (end.year - start.year) * 12 + (end.month - start.month)
+            if 0 < months < 120:  # ignore unreasonable gaps
                 total_months += months
-        except:
+        except Exception:
             continue
 
-    # Fallback: estimate from job titles if no date ranges found
+    # Fallback to estimating by job titles
     if total_months == 0:
         job_titles = [
             "software engineer", "developer", "data analyst", "project manager", "consultant",
@@ -105,9 +112,7 @@ def extract_experience(text: str) -> tuple:
         for jt in job_titles:
             if re.search(rf'\b{jt}\b', text, flags=re.IGNORECASE):
                 found_jobs.add(jt)
-        estimated_months = len(found_jobs) * 12  # assume 1 year per unique job title
-        if estimated_months:
-            total_months = estimated_months
+        total_months = len(found_jobs) * 12  # estimate 1 year per unique role
 
     if total_months == 0:
         return 0, "Not Found"
@@ -118,9 +123,6 @@ def extract_experience(text: str) -> tuple:
     elif years:
         return total_months, f"{years} years"
     return total_months, f"{months} months"
-
-
-
 
 
 
