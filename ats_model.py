@@ -44,66 +44,72 @@ def extract_text_from_pdf_url(url: str) -> str:
     except:
         return ""
 
-def extract_skills(text, skill_list):
-    t = text.lower()
-    return {s for s in skill_list if s.lower() in t}
-
-# Regex date pattern for fallback
-_REGEX_DATE = (r'(?:\d{1,2}[/-]\d{1,2}[/-]\d{2,4}'
-               r'|(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*[ -]?\d{4}'
-               r'|\d{4}'
-               r'|present|current)')
-
 def extract_experience_hf(text):
     """
-    Use Hugging Face NER to extract DATE entities and compute total experience.
-    Falls back to regex extraction if needed.
+    Use explicit regex ranges first, then fallback to HF NER + regex tokens.
     """
-    # 1) HF NER extraction
-    entities = ner_pipeline(text)
-    hf_dates = [e['word'].replace(',', '').strip() for e in entities if e['entity_group'] == 'DATE']
-
-    # 2) Regex fallback extraction
-    regex_dates = re.findall(_REGEX_DATE, text, flags=re.IGNORECASE)
-    regex_dates = [d.strip().replace(',', '') for d in regex_dates]
-
-    # 3) Merge while preserving order
-    seen = set()
-    tokens = []
-    for d in hf_dates + regex_dates:
-        key = d.lower()
-        if key not in seen:
-            seen.add(key)
-            tokens.append(d)
-
-    if len(tokens) < 2:
-        return 0, "Not Found"
-
-    # 4) Compute months between sequential tokens
-    total_months = 0
     now = datetime.now()
-    for i in range(len(tokens) - 1):
-        try:
-            s = now if tokens[i].lower() in ('present', 'current') else date_parser.parse(tokens[i], fuzzy=True)
-            e = now if tokens[i+1].lower() in ('present', 'current') else date_parser.parse(tokens[i+1], fuzzy=True)
-            if s > e:
-                s, e = e, s
-            months = (e.year - s.year) * 12 + (e.month - s.month)
-            if months > 0:
-                total_months += months
-        except:
-            continue
+
+    # 1) Explicit date-range regex
+    date_token = _REGEX_DATE
+    range_re = re.compile(rf'({date_token})\s*(?:-|–|to)\s*({date_token})', flags=re.IGNORECASE)
+    total_months = 0
+    ranges = range_re.findall(text)
+    if ranges:
+        for start_str, end_str in ranges:
+            try:
+                s = now if start_str.lower() in ('present','current') else date_parser.parse(start_str, fuzzy=True)
+                e = now if end_str.lower() in ('present','current') else date_parser.parse(end_str, fuzzy=True)
+                if s > e: 
+                    s, e = e, s
+                months = (e.year - s.year) * 12 + (e.month - s.month)
+                if months > 0:
+                    total_months += months
+            except:
+                continue
+
+    # 2) Fallback: merge HF NER tokens and regex tokens
+    else:
+        entities = ner_pipeline(text)
+        hf_dates = [e['word'].replace(',', '').strip() for e in entities if e['entity_group']=='DATE']
+        regex_dates = re.findall(_REGEX_DATE, text, flags=re.IGNORECASE)
+        regex_dates = [d.strip() for d in regex_dates]
+
+        seen = set()
+        tokens = []
+        for d in hf_dates + regex_dates:
+            key = d.lower()
+            if key not in seen:
+                seen.add(key)
+                tokens.append(d)
+
+        for i in range(len(tokens) - 1):
+            try:
+                s = now if tokens[i].lower() in ('present','current') else date_parser.parse(tokens[i], fuzzy=True)
+                e = now if tokens[i+1].lower() in ('present','current') else date_parser.parse(tokens[i+1], fuzzy=True)
+                if s > e:
+                    s, e = e, s
+                months = (e.year - s.year) * 12 + (e.month - s.month)
+                if months > 0:
+                    total_months += months
+            except:
+                continue
 
     if total_months == 0:
         return 0, "Not Found"
 
     years, months = divmod(total_months, 12)
     if years and months:
-        return total_months, f"{years} years and {months} months"
+        human = f"{years} years and {months} months"
     elif years:
-        return total_months, f"{years} years"
+        human = f"{years} years"
     else:
-        return total_months, f"{months} months"
+        human = f"{months} months"
+
+    return total_months, human
+
+
+
 
 
 def education_match(resume_text, required_qualifications):
