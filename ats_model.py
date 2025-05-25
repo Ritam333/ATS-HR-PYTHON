@@ -94,47 +94,39 @@ def parse_date(date_str):
 
 
 def extract_experience(text):
-    import dateutil.parser
-    from datetime import datetime
     import re
+    from datetime import datetime
+    from dateutil import parser
 
-    # Normalize text
-    text = text.replace('\u00A0', ' ').replace('\n', ' ').replace('\r', ' ')
+    text = text.replace('\n', ' ').replace('\r', ' ')
     text = re.sub(r'\s+', ' ', text).strip()
 
-    # Extended date regex patterns
-    date_patterns = re.findall(
-        r'(?:(?:\d{1,2}[/-])?\d{1,2}[/-]\d{2,4}|'                # 12/03/2002 or 25/5/2023
-        r'(?:January|February|March|April|May|June|July|August|September|October|November|December|'  # March 2024
-        r'Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*[\s\-]?\d{4}|'  # Mar 2024, March-2024
-        r'\d{4})|'  # 2022
-        r'(?:present|current)',  # present or current
+    # Add spacing around dashes to help regex
+    text = re.sub(r'(\d)(-)(\d)', r'\1 - \3', text)
+    text = re.sub(r'([a-zA-Z])-(\d)', r'\1 - \2', text)
+    text = re.sub(r'(\d)-([a-zA-Z])', r'\1 - \2', text)
+
+    # Match potential date ranges
+    date_ranges = re.findall(
+        r'((?:\d{1,2}[/-])?\d{1,2}[/-]\d{2,4}|\d{4}[ ]?(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)?|(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*[ ]?\d{4}|present|current)'
+        r'\s*[-to–]+\s*'
+        r'((?:\d{1,2}[/-])?\d{1,2}[/-]\d{2,4}|\d{4}[ ]?(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)?|(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*[ ]?\d{4}|present|current)',
         text,
         flags=re.IGNORECASE
     )
 
-    # Remove duplicates and clean up
-    date_patterns = list(dict.fromkeys([d.strip().replace(',', '') for d in date_patterns]))
-
-    if not date_patterns or len(date_patterns) < 2:
-        return 0, "Not Found"
-
-    # Match pairs and calculate total months
     total_months = 0
-    for i in range(len(date_patterns) - 1):
-        start_str = date_patterns[i]
-        end_str = date_patterns[i + 1]
-
+    for start_str, end_str in date_ranges:
         try:
-            start_date = datetime.now() if "present" in start_str.lower() or "current" in start_str.lower() else dateutil.parser.parse(start_str, fuzzy=True)
-            end_date = datetime.now() if "present" in end_str.lower() or "current" in end_str.lower() else dateutil.parser.parse(end_str, fuzzy=True)
+            start = datetime.now() if "present" in start_str.lower() or "current" in start_str.lower() else parser.parse(start_str, fuzzy=True)
+            end = datetime.now() if "present" in end_str.lower() or "current" in end_str.lower() else parser.parse(end_str, fuzzy=True)
 
-            if start_date > end_date:
-                start_date, end_date = end_date, start_date
+            if start > end:
+                start, end = end, start
 
-            months = (end_date.year - start_date.year) * 12 + (end_date.month - start_date.month)
-            total_months += max(0, months)
-        except Exception:
+            diff_months = (end.year - start.year) * 12 + (end.month - start.month)
+            total_months += max(0, diff_months)
+        except:
             continue
 
     if total_months == 0:
@@ -149,7 +141,6 @@ def extract_experience(text):
         return total_months, f"{years} years"
     else:
         return total_months, f"{months} months"
-
 
 
 
