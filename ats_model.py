@@ -53,22 +53,29 @@ def extract_skills(text: str, skill_list: list) -> set:
     return {s for s in skill_list if s.lower() in t}
 
 
+
+
+
 def extract_experience(text: str) -> tuple:
     """
-    Extract experience from text using regex date range patterns.
-    Returns total months and human-readable string.
+    Enhanced experience extractor:
+    1. Try to extract experience from date ranges.
+    2. If not found, fallback to job titles and estimate duration.
+    Returns: (total_months, readable_string)
     """
     now = datetime.now()
     min_year, max_year = 1950, now.year + 1
     seen_ranges = set()
     total_months = 0
 
+    # Extended date formats
     date_token = r'(?:\d{1,2}[/-]\d{1,2}[/-]\d{2,4}' \
-                  r'|(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*[ -]?\d{4}' \
-                  r'|\d{4}' \
-                  r'|present|current)'
+                 r'|\d{4}' \
+                 r'|(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*[ .,/-]?\d{2,4}' \
+                 r'|present|current)'
 
-    range_re = re.compile(rf'({date_token})\s*(?:-|–|to)\s*({date_token})', flags=re.IGNORECASE)
+    range_re = re.compile(rf'({date_token})\s*(?:-|–|to|until)\s*({date_token})',
+                          flags=re.IGNORECASE | re.MULTILINE)
 
     for start_str, end_str in range_re.findall(text):
         try:
@@ -83,10 +90,24 @@ def extract_experience(text: str) -> tuple:
                 continue
             seen_ranges.add(key)
             months = (e.year - s.year) * 12 + (e.month - s.month)
-            if 0 < months < 120:  # cap individual blocks to 10 years max
+            if 0 < months < 120:  # cap each block to 10 years
                 total_months += months
         except:
             continue
+
+    # Fallback: estimate from job titles if no date ranges found
+    if total_months == 0:
+        job_titles = [
+            "software engineer", "developer", "data analyst", "project manager", "consultant",
+            "intern", "research assistant", "data scientist", "business analyst", "team lead"
+        ]
+        found_jobs = set()
+        for jt in job_titles:
+            if re.search(rf'\b{jt}\b', text, flags=re.IGNORECASE):
+                found_jobs.add(jt)
+        estimated_months = len(found_jobs) * 12  # assume 1 year per unique job title
+        if estimated_months:
+            total_months = estimated_months
 
     if total_months == 0:
         return 0, "Not Found"
@@ -97,6 +118,11 @@ def extract_experience(text: str) -> tuple:
     elif years:
         return total_months, f"{years} years"
     return total_months, f"{months} months"
+
+
+
+
+
 
 
 def education_match(resume_text: str, required_qualifications: list) -> bool:
